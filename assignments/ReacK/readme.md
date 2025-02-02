@@ -1,0 +1,6 @@
+- Download ReacK.zip. Unzip it.
+- The extracted folder ReacK contains reactive kernel code written in C by hand (by-hand folder) and synthesized to C from a high-level language (Heptagon, by-hept folder).
+- by-hand has C code implemented for Minimum (min) and Minimum of Average (min_avg) which follows the structure of a reactive kernel. That is, it consists of a C file with step and reset functions forming the compute part and the main file (the entry point) that reads inputs from the console (sense), calls functions from the compute part and prints on the console (or actuate).
+- by-hept implements Heptagon code for the same problems, which synthesizes to C code.
+- Minimum takes an input x and finds minimum of the x’s seen so far.
+- Minimum of Average takes inputs x and y and finds minimum of the average at each instance (x+y)/2 seen so far.
