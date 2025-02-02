@@ -1,0 +1,13 @@
+{
+  "name": "CS684 DevContainer",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "cs684",
+  "workspaceFolder": "/home/user/labs",
+  "extensions": [
+  ],
+  "settings": {
+    "terminal.integrated.shell.linux": "/bin/zsh",
+    "editor.formatOnSave": true
+  },
+  "postCreateCommand": "echo 'DevContainer is ready!'"
+}

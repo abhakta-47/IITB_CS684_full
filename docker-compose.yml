@@ -1,0 +1,18 @@
+services:
+  cs684:
+    image: cs684:test
+    build: ./docker/
+    volumes:
+      - ./docker/home/.zsh_history:/home/user/.zsh_history
+      - ./docker/home/.zshrc:/home/user/.zshrc
+      - ./labs/:/home/user/labs:rw
+      - /tmp/.X11-unix/:/tmp/.X11-unix/
+      - ~/.config/gtk-3.0:/home/user/.config/gtk-3.0:ro
+      - ~/.config/gtk-2.0:/home/user/.config/gtk-2.0:ro
+      - /usr/share/fonts:/usr/share/fonts:ro
+      - ~/.fonts:/home/user/.fonts:ro
+    environment:
+      DISPLAY: ${DISPLAY:-0}
+      GTK_THEME: ${GTK_THEME:-Adwaita}
+      GTK2_RC_FILES: /etc/gtk-2.0/gtkrc
+      GTK3_RC_FILES: /etc/gtk-3.0/settings.ini
