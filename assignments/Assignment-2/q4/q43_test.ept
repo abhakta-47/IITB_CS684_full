@@ -1,0 +1,25 @@
+const n:int = 5
+const l1: bool^n = [false ,false ,false ,false ,false ]
+const l2: bool^n = [false ,true, false ,false ,false ]
+const l3: bool^n = [false ,true, false ,true, false ]
+const l4: bool^n = [false ,true, false ,true, true] 
+
+node counthigh(req:bool; cur_freq:int) returns (freq:int)
+let 
+    freq = cur_freq + if req then 1 else 0;
+tel
+
+node mutex<<n:int>>(ack:bool^n) returns (ok:bool)
+var freq: int;
+let
+    freq = fold<<n>>counthigh(ack, 0);
+    ok = if freq=1 then true else false;
+tel
+
+node test() returns (o1,o2,o3,o4:bool)
+let
+    o1 = mutex<<n>>(l1);
+    o2 = mutex<<n>>(l2);
+    o3 = mutex<<n>>(l3);
+    o4 = mutex<<n>>(l4);
+tel

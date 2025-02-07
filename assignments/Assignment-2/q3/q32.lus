@@ -1,0 +1,7 @@
+node gen(req:bool) returns (ack:bool)
+var last_req, last_2_req: bool;
+let
+    last_req = false -> pre req;
+    last_2_req = false -> pre last_req;
+    ack = if (req and (not last_req) and last_2_req) then true else false;
+tel

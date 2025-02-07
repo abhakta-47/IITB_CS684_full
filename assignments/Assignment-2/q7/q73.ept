@@ -1,0 +1,4 @@
+node smonitor(a:bool; b:bool) returns (c: bool)
+let
+    c = if b then false else a or (a->pre c);
+tel

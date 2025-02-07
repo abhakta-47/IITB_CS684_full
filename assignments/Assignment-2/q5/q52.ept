@@ -1,0 +1,31 @@
+const dec0: bool^8 = [false, false, false, false, false, false, false, false]
+const dec1: bool^8 = [true, false, false, false, false, false, false, false]
+
+node mxor(x, y: bool) returns (c: bool)
+let 
+    c = (x and not y) or ((not x) and y);
+tel
+
+node fa(x, y, cin: bool) returns (z, cout: bool)
+let 
+    z = mxor(mxor(cin, x), y); 
+    cout = if cin then (x or y) else (x and y); 
+tel
+
+node rippleadd<<n:int>>(a: bool^n; b: bool^n) returns (c: bool^n; over: bool)
+let
+    (c,over) = mapfold<<n>>fa(a, b, false);
+tel
+
+node count_high(bit:bool; curr:int) returns (freq:int)
+let
+    freq = if bit then curr +1 else curr;
+tel
+
+node counter() returns (count: bool^8)
+var value: bool^8; all_high: int; carry: bool;
+let
+    all_high = fold<<8>>count_high(dec0 -> pre value, 0);
+    (value,carry) = if all_high>6 then ([false, false, false, false, false, false, false, false], false) else rippleadd<<8>>(dec0 -> pre value, dec1);
+    count = value;
+tel

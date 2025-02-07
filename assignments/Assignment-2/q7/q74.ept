@@ -1,0 +1,7 @@
+node smonitor(req:bool) returns (ack: bool)
+var pre_1_req, pre_2_req: bool;
+let
+    pre_1_req = req -> pre req;
+    pre_2_req = req -> pre pre_1_req;
+    ack = req and pre_1_req and pre_2_req;
+tel

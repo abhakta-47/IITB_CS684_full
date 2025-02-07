@@ -1,0 +1,22 @@
+node cell(req, grantin:bool) returns (ack, grantout:bool)
+let
+    ack = (req and grantin);
+    grantout = ((not req) and grantin)
+tel
+
+node arbiter<<n:int>>(req: bool^n) returns (ack: bool^n)
+var last_grantout: bool;
+let
+    (ack, last_grantout) = mapfold<<n>>cell(req, true);
+tel
+
+node display(req0, req1, req2, req3, req4:bool) returns (ack0,ack1,ack2,ack3,ack4:bool)
+var out: bool^5;
+let
+    out = arbiter<<5>>([req0, req1, req2, req3, req4]);
+    ack0 = out[0];
+    ack1 = out[1];
+    ack2 = out[2];
+    ack3 = out[3];
+    ack4 = out[4];
+tel

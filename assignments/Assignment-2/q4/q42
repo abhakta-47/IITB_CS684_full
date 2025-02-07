@@ -1,0 +1,2 @@
+`y = fold<<5>>(or)(x, true)`
+it will always return `true`
