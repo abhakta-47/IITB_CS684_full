@@ -29,15 +29,15 @@ RUN wget https://raw.githubusercontent.com/ocaml/opam/master/shell/install.sh -O
 RUN chmod +x opam-install.sh
 RUN printf "\n" | ./opam-install.sh
 RUN opam init --disable-sandboxing -a
-RUN opam switch create 4.03.0
+RUN opam switch create 4.05.0
 
 # Install heptagon
 RUN wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=1Ru1kdpqEAKQ-BJX_QyQpbGsxy7fqpWaI' -O hepta.zip
 RUN unzip hepta.zip
 WORKDIR /build/heptagon-1.05.00
 RUN sudo apt install -y camlp4-extra
-RUN eval $(opam env --switch=4.03.0) && opam install -y menhir lablgtk ocamlgraph ocamlbuild camlp4 
-RUN eval $(opam env --switch=4.03.0) && ./configure && make
+RUN eval $(opam env --switch=4.05.0) && opam install -y menhir lablgtk ocamlgraph ocamlbuild camlp4 
+RUN eval $(opam env --switch=4.05.0) && ./configure && make
 RUN sudo make install
 
 # configure zsh etc
@@ -52,5 +52,7 @@ RUN git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git
 # RUN echo "source ~/.zsh/powerlevel10k/powerlevel10k.zsh-theme" >>~/.zshrc
 
 RUN echo "PROMPT='%~ > '" >> ~/.zshrc
+
+RUN sudo apt install -y libxt6 libxt-dev
 
 CMD ["tail", "-f", "/dev/null"]

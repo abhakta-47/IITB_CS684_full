@@ -1,3 +1,6 @@
 test_stuff/
 *.o
 *.bin
+theory/
+# submission files
+23m0835_*
