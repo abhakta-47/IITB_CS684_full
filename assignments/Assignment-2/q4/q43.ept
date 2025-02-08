@@ -13,7 +13,7 @@ node mutex<<n:int>>(ack:bool^n) returns (ok:bool)
 var freq: int;
 let
     freq = fold<<n>>counthigh(ack, 0);
-    ok = if freq=1 then true else false;
+    ok = if freq<2 then true else false;
 tel
 
 
