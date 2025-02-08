@@ -1,6 +1,7 @@
 services:
   cs684:
     image: captab47/cs684_env:latest
+    build: ./docker/
     volumes:
       - ./docker/home/.zsh_history:/home/user/.zsh_history
       - ./docker/home/.zshrc:/home/user/.zshrc

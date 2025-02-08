@@ -1,4 +1,4 @@
-HISTFILE=~/.zsh_history
+HISTFILE=/volume1/zsh_history
 HISTSIZE=1000
 SAVEHIST=1000
 setopt INC_APPEND_HISTORY
@@ -19,3 +19,5 @@ PROMPT='%~ > '
 [[ ! -r '/home/user/.opam/opam-init/init.zsh' ]] || source '/home/user/.opam/opam-init/init.zsh' > /dev/null 2> /dev/null
 eval $(opam env --switch=4.05.0)
 # END opam configuration
+
+alias ls='ls --color=auto'
