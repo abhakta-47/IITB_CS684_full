@@ -1,0 +1,5 @@
+node smonitor(p: bool; q:bool) returns (ok:bool)
+
+let
+
+tel

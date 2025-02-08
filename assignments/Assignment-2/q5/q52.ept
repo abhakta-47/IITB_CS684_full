@@ -1,0 +1,5 @@
+node counter() returns (count: bool^8)
+
+let
+
+tel

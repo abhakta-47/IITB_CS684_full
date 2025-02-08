@@ -1,0 +1,17 @@
+node cell(req, grantin:bool) returns (ack, grantout:bool)
+
+let
+
+tel
+
+node arbiter<<n:int>>(req: bool^n) returns (ack: bool^n)
+
+let
+
+tel
+
+node display(req0, req1, req2, req3, req4:bool) returns (ack0,ack1,ack2,ack3,ack4:bool)
+
+let
+
+tel
