@@ -1,8 +1,16 @@
 {
   "name": "CS684 DevContainer",
-  "dockerComposeFile": "docker-compose.yml",
-  "service": "cs684",
+  "image": "captab47/cs684_env:latest",
   "workspaceFolder": "/home/user/CS684",
+  "mounts": [
+    "source=volume1,target=/volume1,type=volume",
+    "source=${localWorkspaceFolder},target=/home/user/CS684,type=bind",
+    "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind",
+    "source=${localEnv:HOME}/.ssh,target=/home/user/.ssh,type=bind"
+  ],
+  "remoteEnv": {
+    "DISPLAY": "${localEnv:DISPLAY}"
+  },
   "customizations": {
     "vscode": {
       "extensions": [

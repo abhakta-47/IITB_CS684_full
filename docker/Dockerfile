@@ -51,8 +51,11 @@ RUN git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git
 # RUN git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/.zsh/powerlevel10k
 # RUN echo "source ~/.zsh/powerlevel10k/powerlevel10k.zsh-theme" >>~/.zshrc
 
-RUN echo "PROMPT='%~ > '" >> ~/.zshrc
-
 RUN sudo apt install -y libxt6 libxt-dev
+RUN sudo mkdir -p /volume1/ && sudo chown -R user:usergroup /volume1/
+
+COPY home/.zshrc /home/user
+COPY build_run /usr/local/bin
+RUN sudo chmod +x /usr/local/bin/build_run
 
 CMD ["tail", "-f", "/dev/null"]
