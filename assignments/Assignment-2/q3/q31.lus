@@ -1,3 +1,6 @@
+-- o/p following sequence
+-- 1, 9, 36, 100,...
+
 node progression() returns (seq:int)
 var cur: int;
 let

@@ -51,3 +51,36 @@ Z = W + Y;
 Q  =  W* Z;
 R = Q + W;
 ```
+
+## Directory structure
+```
+<RollNo>_assignment2
+│  
+└─── q1 (text file)
+│  
+└─── q2 (text file)
+│
+└─── q3
+│   │   q31.lus
+│   │   q32.lus
+│
+└─── q4
+│   │   q41 (text file)
+│   │   q42 (text file)
+│   │   q43.ept
+│
+└─── q5
+│   │   q51 (text file)
+│   │   q52.ept
+│   
+└─── q6
+│   │   q61.ept
+|   |   q61_op.jpg
+│   │   q62 (text file)
+│   
+└─── q7
+    │   q71 (text file)
+    │   q72.ept
+    │   q73.ept
+    │   q74.ept
+```

@@ -26,6 +26,6 @@ node counter() returns (count: bool^8)
 var value: bool^8; all_high: int; carry: bool;
 let
     all_high = fold<<8>>count_high(dec0 -> pre value, 0);
-    (value,carry) = if all_high>6 then ([false, false, false, false, false, false, false, false], false) else rippleadd<<8>>(dec0 -> pre value, dec1);
+    (value,carry) = if all_high>5 then (dec0, false) else rippleadd<<8>>(dec0 -> pre value, dec1);
     count = value;
 tel
