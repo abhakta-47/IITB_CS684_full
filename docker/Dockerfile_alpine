@@ -1,27 +1,21 @@
-FROM frolvlad/alpine-glibc:alpine-3.16
+FROM frolvlad/alpine-glibc:alpine-3.16 as lustre_builder
 
 # Install required packages
-RUN apk update && apk add --no-cache \
-    wget m4 make patch unzip bubblewrap git g++ \
-    gtk+2.0-dev curl zsh sudo ocaml opam shadow \
-    bash tar unzip 
+RUN apk update && apk add --no-cache wget curl bash tar
 
-# Create a new user with UID 1000 and add to sudo group
-RUN addgroup -g 1001 usergroup && \
-    adduser -D -u 1000 -G usergroup -s /bin/zsh user && \
-    echo "user ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
-
-USER user
 WORKDIR /build
-
-# Install Lustre
 ARG LUSTRE_VER="lustre-v4-IV.2024.144-linux64"
 RUN wget "https://www-verimag.imag.fr/DIST-TOOLS/SYNCHRONE/lustre-v4/distrib/linux64/$LUSTRE_VER.tgz" -O lustre.tgz && \
     tar xvf lustre.tgz && \
-    sudo cp -R $LUSTRE_VER /usr/local/
+    cp -R $LUSTRE_VER /usr/local/
 ENV LUSTRE_INSTALL=/usr/local/$LUSTRE_VER
-RUN . $LUSTRE_INSTALL/setenv.sh
 
+FROM frolvlad/alpine-glibc:alpine-3.16 as heptagon_builder
+
+# Install required packages
+RUN apk update && apk add --no-cache wget m4 make patch unzip bubblewrap git g++ ocaml opam shadow bash tar
+
+WORKDIR /build
 # Install Opam
 RUN wget https://raw.githubusercontent.com/ocaml/opam/master/shell/install.sh -O opam-install.sh && \
     chmod +x opam-install.sh && \
@@ -33,9 +27,23 @@ RUN opam init --disable-sandboxing -a && \
 RUN wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=1Ru1kdpqEAKQ-BJX_QyQpbGsxy7fqpWaI' -O hepta.zip && \
     unzip hepta.zip
 WORKDIR /build/heptagon-1.05.00
-RUN sudo apk add --no-cache camlp4
-RUN eval $(opam env --switch=4.05.0) && opam install -y menhir lablgtk ocamlgraph ocamlbuild camlp4
-RUN eval $(opam env --switch=4.05.0) && ./configure && make && sudo make install
+RUN apk add --no-cache camlp4
+COPY reset.ml compiler/heptagon/trasnformation/reset.ml
+RUN eval $(opam env --switch=4.05.0) && opam install -y --confirm-level=unsafe-yes menhir lablgtk ocamlgraph ocamlbuild camlp4
+RUN eval $(opam env --switch=4.05.0) && ./configure && make && make install
+
+FROM frolvlad/alpine-glibc:alpine-3.16 as final
+
+# Install required packages
+RUN apk update && apk add --no-cache wget curl git zsh sudo shadow bash
+
+# Create a new user with UID 1000 and add to sudo group
+RUN addgroup -g 1001 usergroup && \
+    adduser -D -u 1000 -G usergroup -s /bin/zsh user && \
+    echo "user ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+USER user
+WORKDIR /home/user
 
 # Configure Zsh
 # Change default shell for 'user'
@@ -44,5 +52,9 @@ RUN sudo sed -i 's|/bin/sh|/bin/zsh|' /etc/passwd
 # Install zsh plugins
 RUN git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions /home/user/.zsh/zsh-autosuggestions
 RUN git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting /home/user/.zsh/zsh-syntax-highlighting
+
+# Copy from build images
+COPY --from=lustre_builder /usr/local/lustre-v4-IV.2024.144-linux64 /usr/local/lustre-v4-IV.2024.144-linux64
+COPY --from=heptagon_builder /usr/local/bin/* /usr/local/bin/
 
 CMD ["tail", "-f", "/dev/null"]
