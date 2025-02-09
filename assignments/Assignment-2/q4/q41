@@ -1,0 +1,1 @@
+It does `or` of all the elements of list x. So, returns `true` iff atleast one value in `x` is `true` 

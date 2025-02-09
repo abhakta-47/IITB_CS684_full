@@ -1,5 +1,7 @@
 node smonitor(p: bool; q:bool) returns (ok:bool)
-
+var ps, qs: bool;
 let
-
+    ps = p and (p -> pre ps);
+    qs = q or (q -> pre qs);
+    ok = ps and qs;
 tel
