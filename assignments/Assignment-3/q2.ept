@@ -1,0 +1,30 @@
+(* 
+O/P for the first 11 cycles 
+Table:
+    Flow Cycle	0	1	2	3	4	5	6	7	8	9	10
+    ST State											
+    Y											
+    v											
+    stup											
+    NS State
+
+Answer format: Create q2 text file. List the values for 11 cycles in comma-separated format. Make sure to write each expression's value for 11 cycles on a separate line.
+*)
+
+node myautomaton() returns (y:int; stup:bool; v:int)
+var last x:int = 2;
+let
+    y = x; 
+    automaton
+        state Up
+                 var w:int; 
+                 do x = (last x) + 1; stup = true;
+                    w = 0 -> pre(w)+1; v=w;
+        until  x >= 5 then Down
+        state Down
+            var w:int;
+            do x = (last x) - 1;  stup = false;
+            w = 50 -> pre(w)-2; v=w;
+        until x <= 3 then Up
+    end
+tel

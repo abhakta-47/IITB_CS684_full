@@ -1,0 +1,33 @@
+(* A farm road (or side road) crosses a main road. Traffic light controller must turn on or off the lights maingreen, mainred, sidegreen, sidered. An input “carwait” is true if a car is waiting on the farm road. Input “second” is the timer input which becomes true for one clock cycle every one second. Thus the count of “second” gives how much time has elapsed. 
+
+1. Modify the above controller by adding outputs “mainyellow and sideyellow. The aim is that traffic light must remain yellow for 10 seconds before turning red.
+
+2. What are some of the requirements over the traffic node? For example, one simple requirement is that at most one of maingreen and sidegreen can be true in any clock cycle. List as many requirements (written in English) as you think are appropriate for the modified controller you have designed in part (1). 
+
+Answer format: For question 5.1, submit q51.ept file. And for question 5.2, create q52 text file and mention different requirements in separate lines. 
+*)
+
+
+
+node traffic(carwait,second:bool) 
+      returns (maingreen, mainred,sidegreen,sidered:bool)
+var timegreen:int;
+let
+  automaton
+    state Maingreen
+       do  timegreen = 180 -> if (((pre(timegreen)) > 0) and second) then 
+                                    pre(timegreen)-1  else pre(timegreen);
+       
+           maingreen = true; mainred = false;
+           sidegreen = false; sidered = true;
+       until ((timegreen <= 0) and carwait) then Sidegreen
+    state Sidegreen
+       do
+           timegreen = 60 ->
+                if (((pre(timegreen)) > 0) and second) then pre(timegreen)-1
+                           else pre(timegreen);
+           maingreen = false; mainred = true;
+           sidegreen = true; sidered = false;
+       until ((timegreen <=0)  and not carwait) then Maingreen
+  end
+tel

@@ -1,0 +1,7 @@
+(* 
+Controller keeps gas on/off using the output gas and strikes a flame using the output spark. It can detect whether flame is on/off using input flame. Flow sec is a second beacon. It is true at each clock cycle where one second has elapsed since the previous such value. Flame will not occur unless the gas has accumulated for at least 15 seconds. Not every spark results in flame. Flame also occasionally goes off due to wind. Making a spark after Gas has leaked for more than 60 seconds causes an explosion. Hence, after a leakage longer than 60 seconds, the Gas must be turned off and allowed to dissipate for 120 seconds to reach a safe state. The controller should try to keep the flame on as much as possible. 
+
+Answer format: Submit q6.ept. Explain your design in comments in code file.
+*)
+
+node controller(flame: bool; sec: bool) returns (gas: bool; spark: bool)

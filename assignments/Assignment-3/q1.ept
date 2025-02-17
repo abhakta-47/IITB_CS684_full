@@ -1,0 +1,22 @@
+(* 
+o/p for 
+    updown = 0 0 1 1 1 0 1 0 0 1 1 1 
+    
+Answer format: Create q1 text file. List the output values of "o" in first line and q in second line in comma-separated format. 
+*)
+
+node display(updown:bool) returns (o,q:int)
+var
+    last z: int = 20;
+    y:int;
+let
+  q = z;
+  switch updown
+  | true  do  y = 100 -> pre(y)+1; 
+                         z = (last z) + 1;
+                         o=y + z
+  | false do  y = 10  -> pre(y)-1;
+                         z = (last z) - 1;
+                         o=y + z
+  end
+tel

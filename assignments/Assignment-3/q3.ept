@@ -1,0 +1,25 @@
+(* 
+O/P for the table:
+    Flow Cycle	0	1	2	3	4	5	6	7	8	9
+    ST										
+    AS										
+    c	0	0	1	0	0	0	1	0	1	1
+    o										
+    stup										
+    NS
+
+Answer format: Create q3 text file. Without using a space, list the values for 10 cycles in comma-separated format. Make sure to write each expression's value for 10 cycles on a separate line.
+*)
+
+node myautomaton(c: bool) returns (o: int; stup:bool)
+ let
+    automaton
+      state Up
+         do o = 60 -> pre(o)+2; stup = true;
+      unless c continue Down
+      state Down
+         do o = 150 -> pre(o)-2; stup = false;
+      until c then Up
+    end
+ tel
+
