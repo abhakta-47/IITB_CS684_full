@@ -1,11 +1,6 @@
-(* 
-Everytime a occurs, c will remain continuously true from then on until a b occurs 
-Design decisions:
-- b is given higher priority ie. if b occurs c will be false
-- so if a and b occurs together c will become false
-*)
-
-node smonitor(a:bool; b:bool) returns (c: bool)
+node smonitor(a, b, c: bool) returns (ok: bool);
+var validc: bool;
 let
-    c = if b then false else a or (a->pre c);
+    validc = if b then false else a or (a->pre validc);
+    ok = if validc=c then true else false;
 tel

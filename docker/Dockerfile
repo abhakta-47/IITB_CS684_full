@@ -59,4 +59,9 @@ COPY home/.zshrc /home/user
 COPY build_run /usr/local/bin
 RUN sudo chmod +x /usr/local/bin/build_run
 
+RUN sudo apt install locales
+RUN sudo locale-gen en_US.UTF-8
+RUN sudo update-locale LANG=en_US.UTF-8
+
+
 CMD ["tail", "-f", "/dev/null"]

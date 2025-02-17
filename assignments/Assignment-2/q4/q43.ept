@@ -9,3 +9,10 @@ let
     freq = fold<<n>>count_high(ack, 0);
     ok = if freq<2 then true else false;
 tel
+
+node display(i1,i2,i3,i4:bool) returns (o:bool)
+var i:bool^4;
+let
+    i = [i1,i2,i3,i4];
+    o = mutex<<4>>(i);
+tel
