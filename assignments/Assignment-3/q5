@@ -1,0 +1,88 @@
+1. Mutual Exclusivity: At most one of maingreen and sidegreen can be true in any clock cycle.
+2. Yellow Light Duration: The yellow light (mainyellow or sideyellow) must remain on for exactly 10 seconds before turning red.
+3. State Transitions:
+    From Maingreen to MainYellow when timeout <= 0 and carwait is true.
+    From MainYellow to Sidegreen when timeout <= 0 and carwait is true.
+    From MainYellow to Maingreen when timeout <= 0 and carwait is false.
+    From Sidegreen to SideYellow when timeout <= 0 and carwait is false.
+    From SideYellow to Maingreen when timeout <= 0.
+4. Red Light: When the main road is green or yellow, the side road must be red, and vice versa2
+
+State chart::
++-------------------+
+|     Maingreen     |       until (timeout <= 0) and carwait
++-------------------+------------------------->+
+|                   |                          |
+| maingreen = true  |                          |
+| mainyellow = false|                          |
+| mainred = false   |                          |
+| sidegreen = false |                          |
+| sideyellow = false|                          |
+| sidered = true    |<-----------------+       |
+|                   |                  |       |
++---------+---------+                  |       |
+          | (timeout <= 0) and not carwait     |
+          v                            |       |
++-------------------+                  |       |
+|    MainYellow     |                  |       |
++-------------------+  until (timeout <= 0) and carwait
+|                   |                  |       |
+| maingreen = false |------------------------->+
+| mainyellow = true |                  |       |
+| mainred = false   |                  |       |
+| sidegreen = false |                  |       |
+| sideyellow = false|                  |       |
+| sidered = true    |                  |       |
+|                   |                  |       |
++---------+---------+                  |       |
+          | (timeout <= 0) and not carwait     |
+          v                            |       |
++-------------------+                  |       |
+|    Maingreen      |                  |       |
++-------------------+                  |       |
+|                   |                          |
+| maingreen = true  |                  |       |
+| mainyellow = false|                  |       |
+| mainred = false   |                  |       |
+| sidegreen = false |                  |       |
+| sideyellow = false|                  |       |
+| sidered = true    |                  |       |
+|                   |                  |       |
++---------+---------+                  |       |
+          | (timeout <= 0)             |       |
+          v                            |       |
++-------------------+                  |       |
+|    Sidegreen      |                  |       |
++-------------------+  until (timeout <= 0) and not carwait
+|                   |                  |       |
+| maingreen = false |------------------------->+
+| mainyellow = false|                  |       |
+| mainred = true    |                  |       |
+| sidegreen = true  |                  |       |
+| sideyellow = false|                  |       |
+| sidered = false   |                  |       |
+|                   |                  |       |
++---------+---------+                  |       |
+          | (timeout <= 0)             |       |
+          v                            |       |
++-------------------+                  |       |
+|    SideYellow     |                  |       |
++-------------------+  until (timeout <= 0)
+|                   |                  |       |
+| maingreen = false |------------------------->+
+| mainyellow = false|                          |
+| mainred = true    |                          |
+| sidegreen = false |                          |
+| sideyellow = true |                          |
+| sidered = false   |                          |
+|                   |                          |
++-------------------+                          |
+|                   |                          |
+| maingreen = true  |                          |
+| mainyellow = false|                          |
+| mainred = false   |                          |
+| sidegreen = false |                          |
+| sideyellow = false|                          |
+| sidered = true    |                          |
+|                   |                          |
++-------------------+<-------------------------+

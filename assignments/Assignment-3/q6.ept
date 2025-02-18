@@ -3,5 +3,115 @@ Controller keeps gas on/off using the output gas and strikes a flame using the o
 
 Answer format: Submit q6.ept. Explain your design in comments in code file.
 *)
+(*
+Design ::::
 
-node controller(flame: bool; sec: bool) returns (gas: bool; spark: bool)
+States ::
+GasFlow: The gas is flowing, and the spark is off.
+IgnitionAttempt: The gas is flowing, and the spark is on.
+SafetyShutdown: Both gas and spark are off.
+FlameOn: The gas is flowing, and the spark is off, indicating the flame is on.
+
+State Transitions ::
+GasFlow:
+Transitions to IgnitionAttempt when gastime >= 15.
+Transitions to FlameOn unless flame.
+IgnitionAttempt:
+Transitions to SafetyShutdown when gastime >= 45.
+Transitions to FlameOn unless flame.
+SafetyShutdown:
+Transitions to GasFlow when gastime >= 120.
+FlameOn:
+Transitions to GasFlow unless not flame.
+
+*)
+
+(* 
+State Chart ::
+
++-------------------+
+|     GasFlow       |       unless flame 
++-------------------+------------------------->+
+|                   |                          |
+| gas = true        |                          |
+| spark = false     |<-----------------+       |
+|                   |                  |       |
++---------+---------+                  |       |
+          | gastime >= 15              |       |
+          v                            |       |
++-------------------+                  |       |
+| IgnitionAttempt   |                  |       |
++-------------------+  unless flame    |       |
+|                   |                  |       |
+| gas = true        |------------------------->+
+| spark = true      |                  |       |
+|                   |                  |       |
++---------+---------+                  |       |
+          | gastime >= 45              |       |
+          v                            |       |
++-------------------+                  |       |
+| SafetyShutdown    |                  |       |
++-------------------+                  |       |
+|                   |                          |
+| gas = false       |                  |       |
+| spark = false     |                  |       |
+|                   |                  |       |
++---------+---------+                  |       |
+          | gastime >= 120             |       |
+          v                            |       |
++-------------------+                  |       |
+|     GasFlow       |                  |       |
++-------------------+                  |       |
+|                   |                          |
+| gas = true        |                  |       |
+| spark = false     |                  |       |
+|                   |                  |       |
++---------+---------+                  |       |
+          | unless flame               |       |
+          v                            |       |
++-------------------+                  |       |
+|     FlameOn       | unless not flame |       |
++-------------------+----------------->+       |    
+|                   |                          |
+| gas = true        |                          |
+| spark = false     +<-------------------------+
+|                   |                  
++---------+---------+                  
+*)
+
+node controller(flame: bool; sec: bool) returns (gas: bool; spark: bool;) 
+var gastime:int;
+let
+    automaton
+        state GasFlow
+            do
+                gastime = 1 -> if ((pre(gastime)<15) and sec) then pre(gastime) + 1 else pre(gastime);
+                gas = true;
+                spark = false;
+            until (gastime >= 15 ) then IgnitionAttempt
+            unless flame then FlameOn
+
+        state IgnitionAttempt
+            do
+                gastime = 1 -> if ((pre(gastime)<45) and sec) then pre(gastime) + 1 else pre(gastime);
+                gas = true;
+                spark = true;
+            until (gastime >= 45) then SafetyShutdown   
+            unless (flame) then FlameOn
+        
+        state FlameOn
+            do
+                gastime = 0;
+                gas = true;
+                spark = false;
+            unless (not flame) then GasFlow
+        
+        state SafetyShutdown
+            do
+                gastime = 1 -> if ((pre(gastime)<120) and sec) then pre(gastime) + 1 else pre(gastime);
+                gas = false;
+                spark = false;
+            until ((gastime >= 120)) then GasFlow
+    end
+tel
+ 

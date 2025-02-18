@@ -5,7 +5,7 @@ Answer format: Create q4 text file. Mention number of modes in first line and ex
 *)
 
 node myautomaton(i1: bool; i2: bool; i3: bool; i4: bool)
-  returns (o1: bool; o2: bool; o3: bool; o4: bool)
+  returns (o1: bool; o2: bool; o3: bool; o4: bool; state: number;)
 let
   automaton
     state State1
@@ -47,5 +47,5 @@ let
        var l2: bool;
        do o1 = false; o2 = false; o3 = l2; o4 = false; l2 = true;
        until i4 then State1
-    end
+  end
 tel

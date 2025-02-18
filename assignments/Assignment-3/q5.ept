@@ -10,24 +10,38 @@ Answer format: For question 5.1, submit q51.ept file. And for question 5.2, crea
 
 
 node traffic(carwait,second:bool) 
-      returns (maingreen, mainred,sidegreen,sidered:bool)
-var timegreen:int;
+      returns (maingreen, mainred,sidegreen,sidered,mainyellow,sideyellow:bool)
+var timeout:int;
 let
   automaton
     state Maingreen
-       do  timegreen = 180 -> if (((pre(timegreen)) > 0) and second) then 
-                                    pre(timegreen)-1  else pre(timegreen);
-       
-           maingreen = true; mainred = false;
-           sidegreen = false; sidered = true;
-       until ((timegreen <= 0) and carwait) then Sidegreen
+       do  timeout = 180 -> if (((pre(timeout)) > 0) and second) then 
+                                    pre(timeout)-1  else pre(timeout);
+           maingreen = true;  mainyellow = false; mainred = false; 
+           sidegreen = false; sideyellow = false; sidered = true;  
+       until ((timeout <= 0) and carwait) then MainYellow
+    state MainYellow
+       do  timeout = 10 -> if (((pre(timeout)) > 0) and second) then 
+                                    pre(timeout)-1  else pre(timeout);
+           maingreen = false; mainyellow = true;  mainred = false; 
+           sidegreen = false; sideyellow = false; sidered = true;  
+       until ((timeout <= 0) and carwait) then Sidegreen
+         |   ((timeout <= 0) and (not carwait)) then Maingreen
     state Sidegreen
        do
-           timegreen = 60 ->
-                if (((pre(timegreen)) > 0) and second) then pre(timegreen)-1
-                           else pre(timegreen);
-           maingreen = false; mainred = true;
-           sidegreen = true; sidered = false;
-       until ((timegreen <=0)  and not carwait) then Maingreen
+           timeout = 60 ->
+                if (((pre(timeout)) > 0) and second) then pre(timeout)-1
+                           else pre(timeout);
+           maingreen = false; mainyellow = false; mainred = true; 
+           sidegreen = true;  sideyellow = false; sidered = false; 
+       until ((timeout <=0)  and not carwait) then SideYellow
+    state SideYellow
+       do
+           timeout = 10 ->
+                if (((pre(timeout)) > 0) and second) then pre(timeout)-1
+                           else pre(timeout);
+           maingreen = false; mainyellow = false; mainred = true; 
+           sidegreen = false; sideyellow = true;  sidered = false; 
+       until (timeout <=0) then Maingreen
   end
 tel
