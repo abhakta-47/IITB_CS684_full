@@ -1,11 +1,28 @@
 FROM ubuntu:22.04
 
 RUN apt update -y
-RUN apt install -y wget
-RUN apt install -y m4 make wget patch unzip bubblewrap git g++
-RUN apt install -y libgtk2.0-dev
-RUN apt install -y curl
-RUN apt install -y zsh sudo ocaml
+RUN apt install -y \
+    wget \
+    m4 \
+    make \
+    wget \
+    patch \
+    unzip \
+    bubblewrap \
+    git \
+    g++ \
+    libgtk2.0-dev \
+    curl \
+    zsh \
+    sudo \
+    ocaml \
+    locales \
+    python3-venv \
+    camlp4-extra \
+    libxt6 \
+    libxt-dev
+RUN locale-gen en_US.UTF-8
+RUN update-locale LANG=en_US.UTF-8
 
 # Create a new user with UID 1001 and add to sudo group
 RUN groupadd -g 1001 usergroup
@@ -35,7 +52,6 @@ RUN opam switch create 4.05.0
 RUN wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=1Ru1kdpqEAKQ-BJX_QyQpbGsxy7fqpWaI' -O hepta.zip
 RUN unzip hepta.zip
 WORKDIR /build/heptagon-1.05.00
-RUN sudo apt install -y camlp4-extra
 COPY reset.ml compiler/heptagon/trasnformation/reset.ml
 RUN eval $(opam env --switch=4.05.0) && opam install -y menhir lablgtk ocamlgraph ocamlbuild camlp4 
 RUN eval $(opam env --switch=4.05.0) && ./configure && make
@@ -52,16 +68,10 @@ RUN git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git
 # RUN git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/.zsh/powerlevel10k
 # RUN echo "source ~/.zsh/powerlevel10k/powerlevel10k.zsh-theme" >>~/.zshrc
 
-RUN sudo apt install -y libxt6 libxt-dev
 RUN sudo mkdir -p /volume1/ && sudo chown -R user:usergroup /volume1/
 
 COPY home/.zshrc /home/user
 COPY build_run /usr/local/bin
 RUN sudo chmod +x /usr/local/bin/build_run
-
-RUN sudo apt install locales
-RUN sudo locale-gen en_US.UTF-8
-RUN sudo update-locale LANG=en_US.UTF-8
-
 
 CMD ["tail", "-f", "/dev/null"]
