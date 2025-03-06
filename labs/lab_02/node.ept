@@ -1,0 +1,115 @@
+(*********************************************************************************
+Inputs:
+    Values from 5 White Line Sensors.
+    Each Sensor value ranges between: 0 to 1023.
+    On white surface, sensor values are low and for black surface, sensor values are high.
+Outputs:
+    3 for controlling the motion of the Robot (1 for Direction and 2 for Motor's velocities).
+    From the final heptagon node, 3 outputs are required: 2 velocity values (of left and right motors) and direction.
+    Directions list:
+        Direction	Representation
+        Stop	        0
+        Forward	        1
+        Left	        2
+        Right	        3
+        Backward	    4
+    Motor velocity ranges between 0 to 100. It should not be negative or greater than 100.
+- Consider a black line on white surface.
+- Use PID controller for line following.
+- You are free to make assumptions regarding
+    readings of white line sensors at different instances,
+    distance covered by robot for different motions in single step etc.
+**********************************************************************************)
+
+(* Sensor input ranges *)
+const sensor_min: int = 0
+const sensor_max: int = 50
+
+(* PID gains and ranges *)
+(* Gains should be determined through field trials *)
+const kp: int = 10
+const kd: int = 2
+const ki: int = 1
+const kscale: int = kp + kd + ki  -- Using integer division for scaling down
+const max_i: int = sensor_max  -- Prevents integral overflow
+const sensor_weights: int^5 = [-10, -5, 0, 5, 10]
+const sensor_weight_epsilon: int = 1 -- TODO: Use 0.02 * sensor_max for better normalization
+
+(* Motor output ranges *)
+const motor_min: int = 0
+const motor_max: int = 100
+
+(* PID error computation *)
+node calPidError(value: int) returns (pid_error: int)
+var p, i, d: int;
+let
+     p = value;
+     (* Integral term with windup prevention *)
+     i = if ((0->pre(i) + value) <= max_i) then (0->pre(i) + value) else max_i;
+     d = value - 0->pre(value);
+     pid_error = (kp*p + ki*i + kd*d) / kscale;
+tel
+
+(* Computes weighted sum of sensor values *)
+node weightedSum(sen_value, sen_weight, prev_sum: int) returns (weighted_sum: int)
+let
+    weighted_sum = prev_sum + sen_value * sen_weight;
+tel
+
+(* Computes normalized weighted sum of sensor values *)
+(* This function calculates the weighted sum of sensor values and normalizes it using the total sensor readings to determine the error for PID control. *)
+node senWeightedSum(sen: int^5) returns (error: int)
+var weighted_sum, epsilon_sum: int;
+let
+    weighted_sum = fold<<5>>weightedSum(sen, sensor_weights, 0);
+    epsilon_sum = fold<<5>>(+)(sen, 0) + sensor_weight_epsilon;
+    error = weighted_sum / epsilon_sum;
+tel
+
+(* Maps PID error to motor speed adjustment *)
+node piderr_2_motor_reaction(pid_error: int) returns (motor_reaction: int)
+var sensor_range, motor_range, pid_diff, temp: int;
+let
+    pid_diff = (pid_error - sensor_min);
+    sensor_range = (sensor_max - sensor_min);
+    motor_range = (motor_max - motor_min);
+    temp = pid_diff * motor_range;
+    motor_reaction = temp / sensor_range;
+tel
+
+(* node whit_or_black_map(sen: int^5) returns (mapped_sen: int^5)
+let
+    raw_sen = sen;
+    compliment_sen = [sensor_max - sen[0], sensor_max - sen[1], sensor_max - sen[2], sensor_max - sen[3], sensor_max - sen[4]];
+tel *)
+
+(* Main function for line following *)
+node main(sen0, sen1, sen2, sen3, sen4: int) returns (v_l, v_r, dir, sensor, pid_error, motor_reaction: int)
+var sen: int^5;
+let
+    -- Convert sensor readings to black-line-on-white-surface representation
+    -- black line on white
+    sen = [sen0, sen1, sen2, sen3, sen4];
+    (* -- white line on black *)
+    (* sen = [sensor_max - sen0, sensor_max - sen1, sensor_max - sen2, sensor_max - sen3, sensor_max - sen4]; *)
+    
+    -- Compute error and PID error
+    sensor = senWeightedSum(sen);
+    pid_error = calPidError(sensor);
+    motor_reaction = piderr_2_motor_reaction(pid_error);
+
+    -- Determine robot movement direction
+    dir =   if sensor = 0 then 1  -- no error -> move forward
+            else if sensor < 0 then 2  -- Negative error -> turn left
+            else if sensor > 0 then 3  -- Positive error -> turn right
+            else if fold<<5>>(+)(sen, 0) < 5 then 4  -- If all sensors detect white, move backward
+            else 0;
+    
+    -- Adjust motor speeds based on PID output
+    v_l =   if (50 + motor_reaction) > 100 then 100  -- Ensure within motor range
+            else if (50 + motor_reaction) < 0 then 0  
+            else (50 + motor_reaction);
+    v_r =   if (50 - motor_reaction) > 100 then 100  
+            else if (50 - motor_reaction) < 0 then 0  
+            else (50 - motor_reaction);
+tel
