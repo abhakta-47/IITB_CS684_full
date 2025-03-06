@@ -7,7 +7,7 @@
             "command": "build_run",
             "args": [
                 "-s",
-                "${selectedText}",
+                "${input:nodeName}",
                 "-p",
                 "${relativeFile}"
             ],
@@ -30,10 +30,26 @@
             "args": [
                 "-c",
                 "260",
+                "-f",
+                "${fileDirname}/input",
                 "-s",
-                "${selectedText}",
+                "${input:nodeName}",
                 "-p",
-                "${relativeFile}"
+                "${relativeFile}",
+                "|",
+                "paste",
+                "-d",
+                "' '",
+                "-", // 1
+                "-", // 2
+                "-", // 3
+                "-", // 1
+                "-", // 2
+                "-", // 3
+                "|",
+                "nl",
+                "-w2",
+                "-s'. '"
             ],
             "group": {
                 "kind": "build",
@@ -46,6 +62,13 @@
                 "panel": "shared"
             },
             "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "nodeName",
+            "type": "promptString",
+            "description": "Node name to build for"
         }
     ]
 }

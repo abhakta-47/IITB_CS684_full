@@ -18,17 +18,20 @@ eval $(opam env)
 node='display'
 path='node.ept'
 gui=true
+ipgiven=false
 limit=""
 prompt="Specify node with 's', path of the heptagon file with 'p' "
-prompt+="and optionally -c <iter limit> to run in non-gui mode.\nDefault is -s "
+prompt+="and optionally -c <iter limit> to run in non-gui mode."
+prompt+="and optionally -f <input file> to run in non-gui mode with input from file. \nDefault is -s "
 prompt+="display -p node.ept\n"
-while getopts 's:p:k:c:h' flag
+while getopts 's:p:k:c:f:h' flag
 do
     case "${flag}" in
         s) node=${OPTARG} ;;
         p) path="${curr_dir}/${OPTARG}" ;;
         k) compile_only=${OPTARG} ;;
         c) gui=false; limit=${OPTARG} ;;
+        f) gui=false; ipgiven=true; ipfile=${OPTARG} ;;
         h) printf "$prompt" ; exit 0 ;;
     esac
 done
@@ -58,6 +61,11 @@ if [ "$gui" = true ] ; then
   cd ..
   hepts -mod "${filename^}" -node $node -exec $filename"_c/"$node
 else
-  echo "Executing program in non-gui mode, enter inputs and press enter:"
-  ./"$node" ${limit:-""}
+  if [ "$ipgiven" = true ]; then
+    # echo "Executing program in non-gui mode, taking input from ${ipfile}:\n"
+    ./"$node" ${limit:-""} < ${ipfile}
+  else
+    echo "Executing program in non-gui mode, enter inputs and press enter:\n"
+    ./"$node" ${limit:-""}
+  fi
 fi
