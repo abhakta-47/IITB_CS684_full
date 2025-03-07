@@ -54,6 +54,7 @@ RUN unzip hepta.zip
 WORKDIR /build/heptagon-1.05.00
 COPY reset.ml compiler/heptagon/trasnformation/reset.ml
 RUN eval $(opam env --switch=4.05.0) && opam install -y menhir lablgtk ocamlgraph ocamlbuild camlp4 
+COPY hepts.ml compiler/main/hepts.ml
 RUN eval $(opam env --switch=4.05.0) && ./configure && make
 RUN sudo make install
 
