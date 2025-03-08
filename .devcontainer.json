@@ -2,9 +2,6 @@
   "name": "CS684 DevContainer",
   "image": "captab47/cs684_env:latest",
   "workspaceFolder": "/home/user/CS684",
-  "runArgs": [
-    "--device=/dev/ttyUSB0"
-  ],
   "mounts": [
     "source=volume1,target=/volume1,type=volume",
     "source=${localWorkspaceFolder},target=/home/user/CS684,type=bind",

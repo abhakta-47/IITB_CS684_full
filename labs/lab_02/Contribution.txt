@@ -1,0 +1,7 @@
+- Design and discussions
+- Heptagon implementation
+- Inputs generation
+- Parameter Tuning
+- readme.md
+- video record
+- code and docs review
