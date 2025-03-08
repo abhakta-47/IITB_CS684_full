@@ -74,5 +74,6 @@ RUN sudo mkdir -p /volume1/ && sudo chown -R user:usergroup /volume1/
 COPY home/.zshrc /home/user
 COPY build_run /usr/local/bin
 RUN sudo chmod +x /usr/local/bin/build_run
+RUN mkdir -p /home/user/.local/share/
 
 CMD ["tail", "-f", "/dev/null"]

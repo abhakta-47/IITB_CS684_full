@@ -1,5 +1,4 @@
 # CS684 :: Lab 2: Heptagon code for Line following
-
 ```
 Submitted by:
 - Santanu Sahoo (23m0777)
@@ -27,113 +26,85 @@ This document explains the implementation of a PID-based line-following robot in
 
 ## Assumptions
 - The robot is moving on a well-defined black track on a white surface.
+- Sensors provide reliable values between `0-1023`.
+- If the sensor is on black line it gives reading in range [800, 1023].
+- If the sensor is on white line it gives reading in range [0, 100].
+- The black line width is 2cm.
 - The PID gains (`kp, kd, ki`) are set based on field trials.
 - Motor speeds are in the range `0-100`.
-- Sensors provide reliable values between `0-1023`.
 - The weight distribution for sensors is symmetrical around the center.
 - `You are free to make assumptions regarding readings of white line sensors at different instances, distance covered by robot for different motions in single step etc.` ??
 
 ## Implementation Details
-PID Controller with direct sensor values has been used. Following are the details
-### 1. Sensor Processing
-The five sensor values are processed to compute the weighted sum of readings.
-
-```c
-const sensor_weights: int^5 = [-10, -5, 0, 5, 10]
-const sensor_weight_epsilon: int = 1
-
-node senWeightedSum(sen: int^5) returns (sensor_sum: int)
-var weighted_sum, epsilon_sum: int;
-let
-    weighted_sum = fold<<5>>weightedSum(sen, sensor_weights, 0);
-    epsilon_sum = fold<<5>>(+)(sen, 0) + sensor_weight_epsilon;
-    sensor_sum = weighted_sum / epsilon_sum;
-tel
-```
+PID Controller with direct sensor values has been used. 
+1. First weighted average of the 5 sensor values is calculated.
+2. Then, PID Error is calucalted on this Weighted Average Value.
+Following are the details.
+3. Based on the PID error direction is determined and motor speed is updated.
+### 1. Weighted Average of five Sensors
+The five sensor values are processed to compute the weighted avg of readings.
 The `sensor_sum` calculation formula is:
 $$
-sensor\_sum = \frac{\sum (sensor_i \times weight_i)}{\sum sensor_i + \epsilon}
+sensor\_sum = \frac{\sum (sensor_i \times weight_i)}{\sum sensor_i}
 $$
-$$
-\epsilon \text{ is very small value (near 1) to ensure the denominator is never zero.} 
-$$ 
 ### 2. PID Error Calculation
 The PID error is computed using proportional, integral, and derivative components:
-
-```c
-const kp: int = 10
-const kd: int = 2
-const ki: int = 1
-const kscale: int = 10
-const max_i: int = sensor_max  -- to prevent integral overflow
-
-node calPidError(value: int) returns (pid_error: int)
-var p, i, d: int;
-let
-     p = value;
-     i = if ((0->pre(i) + value) <= max_i) then (0->pre(i) + value) else max_i;
-     d = value - 0->pre(value);
-     pid_error = (kp*p + ki*i + kd*d) / kscale;
-tel
-```
 - The equation used is: </br>
 $$
 PID_{error} = \frac{K_p P + K_i I + K_d D}{K_{scale}}
 $$
 $$ \text{Here, we use} K\_scale \text{ to approximate floating-point division using integer arithmetic.}$$
 - Empirically tuning gains `(kp, ki, kd)` based on real world testing.
-### 3. Mapping PID Error to Motor Speed
-The PID error is mapped to a motor reaction value using Min-Max scaling:
-
-```c
-node piderr_2_motor_reaction(pid_error: int) returns (motor_reaction: int)
-var sensor_range, motor_range, pid_diff, temp: int;
-let
-    pid_diff = (pid_error - sensor_min);
-    sensor_range = (sensor_max - sensor_min);
-    motor_range = (motor_max - motor_min);
-    temp = pid_diff * motor_range;
-    motor_reaction = temp / sensor_range;
-tel
-```
-Formula:
-$$
-motor_{reaction} = \frac{(PID_{error} - sensor_{min}) \times (motor_{max} - motor_{min})}{sensor_{max} - sensor_{min}}
-$$
-### 4. Determining Direction
-```c
-dir = if sensor_sum = 0 then 1  
-      else if sensor_sum < 0 then 2  
-      else if sensor_sum > 0 then 3  
-      else if fold<<5>>(+)(sen, 0) < 5 then 4  
-      else 0;
-```
-Conditions:
-- `sensor_sum = 0` → Move forward.
-- `sensor_sum < 0` → Turn left.
-- `sensor_sum > 0` → Turn right.
-- `All sensors detect white` → Move backward.
-- `Else` → Stop.
-### 5. Adjusting Motor Speeds
+### 3. Direction and motor speed update
+#### a. Determining Direction
+- `all black` -> stop
+- `all white` -> move backward
+- `no error` -> move forward
+- `Negative error` -> turn left
+- `Positive error` -> turn right
+#### b. Adjusting Motor Speeds
 Adjusting motor speeds based on motor reaction while ensuring they remain within the [0,100] range.
-```c
-v_l = if (50 + motor_reaction) > 100 then 100
-      else if (50 + motor_reaction) < 0 then 0  
-      else (50 + motor_reaction);
 
-v_r = if (50 - motor_reaction) > 100 then 100  
-      else if (50 - motor_reaction) < 0 then 0  
-      else (50 - motor_reaction);
+In straight line
+```c
+v_l = 50 -> safe_motor_update(pre(v_l), 5);
+v_r = 50 -> safe_motor_update(pre(v_r), 5);
+```
+During turn: pid_error would be negative for left turn and positive for right turn.
+```c
+v_l = safe_motor_update(50, pid_error);
+v_r = safe_motor_update(50, -1*pid_error);
 ```
 
 ## Simulation Conditions and Outputs
 - [YouTube Link](https://youtube.com/)
-<!-- below is not corrected has to be geneared -->
-| Scenario | Sensor Inputs (`sen0` to `sen4`) | Computed `sensor_sum` | PID Error | `v_l` | `v_r` | Direction |
-|----------|----------------------------------|------------------|-----------|------|------|------------|
-| Straight | [10, 20, 50, 20, 10]            | 0                | 0         | 50   | 50   | Forward    |
-| Left Turn | [50, 50, 10, 5, 2]             | Negative         | High      | 30   | 70   | Left       |
-| Right Turn | [2, 5, 10, 50, 50]            | Positive         | High      | 70   | 30   | Right      |
-| Backward | [2, 0, 1, 3, 0]                 | N/A              | N/A       | 40   | 40   | Backward   |
-| Off Track | [0, 0, 0, 0, 0]                | N/A              | N/A       | 0    | 0    | Stop       |
-
+### Input/Output table
+Note: in comment +-x means left motor speed increases by around x and right motor spped decreases by x.
+      similarly, -+x means left motor speed decreases and right motor speed increases.
+| Step | sen0  | sen1  | sen2  | sen3  | sen4  | v_l | v_r | dir | comment     |
+|------|-------|-------|-------|-------|-------|-----|-----|-----|-------------|
+| 1    | 9     | 3     | 995   | 2     | 2     | 50  | 50  | 1   | straight |
+| 2    | 9     | 5     | 997   | 2     | 2     | 55  | 55  | 1   | straight |
+| 3    | 8     | 5     | 790   | 534   | 15    | 63  | 37  | 3   | fast right => +-10 |
+| 4    | 8     | 5     | 853   | 214   | 15    | 56  | 44  | 3   | fast right => +-10 |
+| 5    | 3     | 9     | 995   | 2     | 2     | 50  | 50  | 1   | straight |
+| 6    | 40    | 970   | 460   | 5     | 3     | 27  | 73  | 2   | medium left => -+25 |
+| 7    | 15    | 480   | 620   | 2     | 1     | 35  | 65  | 2   | medium left => -+25 |
+| 8    | 5     | 9     | 997   | 7     | 2     | 50  | 50  | 1   | straight |
+| 9    | 980   | 612   | 974   | 1     | 3     | 17  | 83  | 2   | sharp left => -+ 35 |
+| 10   | 48    | 970   | 460   | 823   | 34    | 48  | 52  | 2   | sharp left => -+ 35 |
+| 11   | 12    | 24    | 971   | 12    | 2     | 50  | 50  | 1   | sharp left => -+ 35 |
+| 12   | 9     | 3     | 995   | 2     | 2     | 55  | 55  | 1   | straight |
+| 13   | 3     | 1     | 430   | 995   | 990   | 90  | 10  | 3   | acute right => +- 50 |
+| 14   | 2     | 1     | 110   | 990   | 980   | 97  | 3   | 3   | acute right => +- 50 |
+| 15   | 1     | 3     | 8     | 900   | 975   | 100 | 0   | 3   | acute right => +- 50 |
+| 16   | 2     | 1     | 2     | 1     | 2     | 50  | 50  | 4   | outoftrack => back |
+| 17   | 1     | 1     | 1     | 1     | 1     | 50  | 50  | 4   | outoftrack => back |
+| 18   | 1     | 1     | 1     | 1     | 1     | 50  | 50  | 4   | outoftrack => back |
+| 19   | 9     | 11    | 997   | 5     | 2     | 50  | 50  | 1   | straight |
+| 20   | 1     | 3     | 995   | 7     | 4     | 55  | 55  | 1   | straight => ++5 |
+| 21   | 9     | 11    | 997   | 5     | 2     | 60  | 60  | 1   | straight => ++5 |
+| 22   | 1     | 3     | 995   | 7     | 4     | 65  | 65  | 1   | straight => ++5 |
+| 23   | 9     | 11    | 997   | 5     | 2     | 70  | 70  | 1   | straight => ++5 |
+| 24   | 1     | 3     | 995   | 7     | 4     | 75  | 75  | 1   | straight => ++5 |
+| 25   | 1000  | 986   | 1000  | 989   | 969   | 0   | 0   | 0   | finish   => stop |

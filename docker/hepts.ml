@@ -258,7 +258,7 @@ let create_input v_name v_ty n (table:GPack.table) =
   match v_ty with
   | Tid{ qual = Pervasives; name = "int" } ->
       new scale_input
-        0. (-60.) 60. float_of_string
+        0. (0.) 1024. float_of_string
         (fun v ->
           string_of_int (int_of_float v))
         0
@@ -727,8 +727,9 @@ let main () =
     try
       while true do
         let line = input_line ic in
-        let words = Str.split (Str.regexp " +") line in
-        lines := words :: !lines
+        if line <> "" && not (Str.string_match (Str.regexp "//") line 0) then
+          let words = Str.split (Str.regexp " +") line in
+          lines := words :: !lines
       done; []
     with End_of_file ->
       close_in ic;
