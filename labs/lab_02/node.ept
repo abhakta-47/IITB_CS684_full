@@ -110,8 +110,8 @@ let
     local_dir =  if sensor_arithmetic_sum > (black_thresh*5)    then 0  -- all black -> stop
             else if sensor_arithmetic_sum < (white_thresh*5)    then 4  -- all white -> move backward
             else if pid_error = 0                               then 1  -- no error -> move forward
-            else if sensor_avg < 0                              then 2  -- Negative error -> turn left
-            else if sensor_avg > 0                              then 3  -- Positive error -> turn right
+            else if pid_error < 0                              then 2  -- Negative error -> turn left
+            else if pid_error > 0                              then 3  -- Positive error -> turn right
             else                                                     0; -- fallback/defult
     dir = local_dir;
 
@@ -120,12 +120,12 @@ let
             do
                 automaton
                     state Straight
-                        var stcounter, accelarate: int;
+                        var stcounter, accelerate: int;
                         do
                             stcounter = 0 -> if pre(stcounter) >= acc_thresh then 1 else pre(stcounter) + 1;
-                            accelarate = if stcounter >= acc_thresh then 5 else 0;
-                            v_l = 50 -> safe_motor_update(pre(v_l), accelarate);
-                            v_r = 50 -> safe_motor_update(pre(v_r), accelarate);
+                            accelerate = if stcounter >= acc_thresh then 5 else 0;
+                            v_l = 50 -> safe_motor_update(pre(v_l), accelerate);
+                            v_r = 50 -> safe_motor_update(pre(v_r), accelerate);
                         unless not (local_dir = 1) then Turn
                     state Turn
                         do

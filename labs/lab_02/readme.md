@@ -25,13 +25,13 @@ This document explains the implementation of a PID-based line-following robot in
   - `4` - Backward
 
 ## Scenarios Considered
-- **straight** line => **neutral** (left and right motor speed @50)
-  - if reading **straight is continued** for some cycles => **accelerate** (increase both motor speed by 5)
-- differnet types of turns in both left and right direction. [+- means one motor speed is increased while the other is decreased based on direction]
-  1. **Acute Turn**: Less than 45° => **speed +- ~10**
-  2. **Sharp Turn**: 45° to 90° => **speed +- ~25**
-  3. **Right-Angle Turn**: 90°-135° => **speed +- ~35**
-  4. **Fast Corner**: More than 135°-180° => **speed +- ~50**
+- **straight** line => **neutral** (left and right motor velocity @50)
+  - if reading **straight is continued** for some cycles => **accelerate** (increase both motor velocity by 5)
+- differnet types of turns in both left and right direction. [+- means one motor velocity is increased while the other is decreased based on direction]
+  1. **Minor Turn**: Less than 45° => **velocity +- ~10**
+  2. **Angled Turn**: 45° to 90° => **velocity +- ~25**
+  3. **Sharp Turn**: 90°-135° => **velocity +- ~35**
+  4. **U Turn**: More than 135°-180° => **velocity +- ~50**
 - robot **losing the track** => **backward**
 - robot reaching the **finish line** (all black strip) => **stop**
 
@@ -45,15 +45,14 @@ This document explains the implementation of a PID-based line-following robot in
 - Some random **`kp = 0.06`** has been selected as proportional gain that balances responsiveness without excessive oscillations.  
 - **`kd` and `ki`**: Set to zero initially;
 - **(kp, kd, ki)** will be tuned empirically for optimal stability and steady-state performance.  
-- Motor speeds are in the range `0-100`.
+- Motor velocities are in the range `0-100`.
 - The weight distribution for sensors is symmetrical around the center.
-- `You are free to make assumptions regarding readings of white line sensors at different instances, distance covered by robot for different motions in single step etc.` ??
 
 ## Implementation Details
-PID Controller with direct sensor values has been used. 
+PID Controller with direct sensor values has been used.
 1. First weighted average of the 5 sensor values is calculated.
 2. Then, PID Error is calculated on this Weighted Average Value.
-3. Based on the PID error direction is determined and motor speed is updated.
+3. Based on the PID error direction is determined and motor velocity is updated.
 
 Following are the details.
 ### 1. Weighted Average of five Sensors
@@ -67,11 +66,16 @@ $$
 - The **middle sensor's weight is zero** because it should contribute no error when perfectly aligned.
 - **Negative weights** for left-side sensors represent deviations to the **left**.
 - **Positive weights** for right-side sensors represent deviations to the **right**.
-- Ensure error direction matches deviation (negative for left, positive for right).
-- Provide sufficient resolution for integer-only calculations by scaling values appropriately.
+- If error is negative take left else if positive take right.
+- To simulate floating operations, large weights (e.g. 10 has been taken as 10000) have been choosen to give sufficient resolution in integer operations.
 ### 2. PID Error Calculation
-The ideal `sensor_avg` should be 0. So, the error is `sensor_avg` itself.
-The PID error is computed using proportional, integral, and derivative components:
+In ideal condition only the middle sensor would be on black so ideal `sensor_avg` should be 0. 
+```
+error 
+= sensor_avg - ideal_Value
+= sensor_avg
+```
+The PID error is computed on `sensor_avg` using proportional, integral, and derivative components:
 ```c
 node calPidError(value: int) returns (pid_error: int)
 var p, i, d: int;
@@ -86,9 +90,9 @@ let
      pid_error = (kp*p + ki*i + kd*d) / kscale;
 tel
 ```
-$$ \text{Here, we use} K\_scale \text{ to approximate floating-point division using integer arithmetic.}$$
+- Here, we use Kscale to approximate floating-point division using integer arithmetic.
 - **`max_i = 200,000,000`**: Limits the integral term to prevent overflow during long-term accumulation.
-### 3. Direction and motor speed update
+### 3. Direction and motor velocity update
 #### a. Determining Direction
 ```c
      if sensor_sum > (black_thresh*5) then 0  -- all black -> stop
@@ -98,8 +102,8 @@ else if sensor_avg < 0 then 2  -- Negative error -> turn left
 else if sensor_avg > 0 then 3  -- Positive error -> turn right
 else 0; -- fallback/default
 ```
-#### b. Adjusting Motor Speeds
-Adjusting motor speeds based on motor reaction while ensuring they remain within the [0,100] range.
+#### b. Adjusting Motor velocities
+Adjusting motor velocities based on pid_error while ensuring they remain within the [0,100] range.
 
 In straight line
 ```c
@@ -119,19 +123,19 @@ v_r = safe_motor_update(50, -1*pid_error);
 |------|-------|-------|-------|-------|-------|-----|-----|-----|-------------|
 | 1    | 9     | 3     | 995   | 2     | 2     | 50  | 50  | 1   | straight |
 | 2    | 9     | 5     | 997   | 2     | 2     | 55  | 55  | 1   | straight |
-| 3    | 8     | 5     | 790   | 534   | 15    | 64  | 36  | 3   | acute right => +-10 |
-| 4    | 8     | 5     | 853   | 214   | 15    | 57  | 43  | 3   | acute right => +-10 |
+| 3    | 8     | 5     | 790   | 534   | 15    | 64  | 36  | 3   | minor right => +-10 |
+| 4    | 8     | 5     | 853   | 214   | 15    | 57  | 43  | 3   | minor right => +-10 |
 | 5    | 3     | 9     | 995   | 2     | 2     | 50  | 50  | 1   | straight |
-| 6    | 40    | 970   | 460   | 5     | 3     | 26  | 74  | 2   | sharp left => -+25 |
-| 7    | 15    | 480   | 620   | 2     | 1     | 35  | 65  | 2   | sharp left => -+25 |
+| 6    | 40    | 970   | 460   | 5     | 3     | 26  | 74  | 2   | angled left => -+25 |
+| 7    | 15    | 480   | 620   | 2     | 1     | 35  | 65  | 2   | angled left => -+25 |
 | 8    | 5     | 9     | 997   | 7     | 2     | 50  | 50  | 1   | straight |
-| 9    | 980   | 612   | 974   | 1     | 3     | 16  | 84  | 2   | rightangle left => -+35 |
-| 10   | 48    | 970   | 460   | 823   | 34    | 48  | 52  | 2   | rightangle left => -+35 |
+| 9    | 980   | 612   | 974   | 1     | 3     | 16  | 84  | 2   | sharp left => -+35 |
+| 10   | 48    | 970   | 460   | 823   | 34    | 48  | 52  | 2   | sharp left => -+35 |
 | 11   | 12    | 24    | 971   | 12    | 2     | 49  | 51  | 2   | straight |
 | 12   | 9     | 3     | 995   | 2     | 2     | 50  | 50  | 1   | straight |
-| 13   | 3     | 1     | 430   | 995   | 990   | 92  | 8   | 3   | fast right => +-50 |
-| 14   | 2     | 1     | 110   | 990   | 980   | 99  | 1   | 3   | fast right => +-50 |
-| 15   | 1     | 3     | 8     | 900   | 975   | 100 | 0   | 3   | fast right => +-50 |
+| 13   | 3     | 1     | 430   | 995   | 990   | 92  | 8   | 3   | U-turn right => +-50 |
+| 14   | 2     | 1     | 110   | 990   | 980   | 99  | 1   | 3   | U-turn right => +-50 |
+| 15   | 1     | 3     | 8     | 900   | 975   | 100 | 0   | 3   | U-turn right => +-50 |
 | 16   | 2     | 1     | 2     | 1     | 2     | 50  | 50  | 4   | outoftrack => back |
 | 17   | 1     | 1     | 1     | 1     | 1     | 50  | 50  | 4   | outoftrack => back |
 | 18   | 1     | 1     | 1     | 1     | 1     | 50  | 50  | 4   | outoftrack => back |
