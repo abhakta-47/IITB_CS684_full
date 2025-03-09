@@ -24,64 +24,80 @@ This document explains the implementation of a PID-based line-following robot in
   - `3` - Right
   - `4` - Backward
 
+## Scenarios Considered
+- **straight** line => **neutral** (left and right motor speed @50)
+  - if reading **straight is continued** for some cycles => **accelerate** (increase both motor speed by 5)
+- differnet types of turns in both left and right direction. [+- means one motor speed is increased while the other is decreased based on direction]
+  1. **Acute Turn**: Less than 45° => **speed +- ~10**
+  2. **Sharp Turn**: 45° to 90° => **speed +- ~25**
+  3. **Right-Angle Turn**: 90°-135° => **speed +- ~35**
+  4. **Fast Corner**: More than 135°-180° => **speed +- ~50**
+- robot **losing the track** => **backward**
+- robot reaching the **finish line** (all black strip) => **stop**
+
 ## Assumptions
-- The robot is moving on a well-defined black track on a white surface.
+- The robot is moving on a **well-defined black track on a white surface**.
 - Sensors provide reliable values between `0-1023`.
-- If the sensor is on white surface, it gives reading in range [0, 100].
-- If the sensor is on black surface, it gives reading in range [800, 1023].
-- The black line width is 2cm.
-- There is a finish line which is all black strip ie all sensors reads high value
+- If the sensor is on **white** surface, it gives reading in range **[0, 100]**.
+- If the sensor is on **black** surface, it gives reading in range **[800, 1023]**.
+- The **black line width is 2cm**.
+- There is a **finish line** which is all black strip ie. all sensors reads high value.
 - Some random **`kp = 0.06`** has been selected as proportional gain that balances responsiveness without excessive oscillations.  
 - **`kd` and `ki`**: Set to zero initially;
-- `(kp, kd, ki)` will be tuned empirically for optimal stability and steady-state performance.  
+- **(kp, kd, ki)** will be tuned empirically for optimal stability and steady-state performance.  
 - Motor speeds are in the range `0-100`.
 - The weight distribution for sensors is symmetrical around the center.
 - `You are free to make assumptions regarding readings of white line sensors at different instances, distance covered by robot for different motions in single step etc.` ??
 
-## Scenarios Considered
-- straight line
-- differnet types of turns in both left and right direction
-  1. **Acute Turn**: Less than 45°
-  2. **Sharp Turn**: 45° to 90°
-  3. **Right-Angle Turn**: 90°
-  4. **Fast Corner**: 100° to 120° or more
-- robot losing the track
-- robot reaching the finish line (all black strip)
-
 ## Implementation Details
 PID Controller with direct sensor values has been used. 
 1. First weighted average of the 5 sensor values is calculated.
-2. Then, PID Error is calucalted on this Weighted Average Value.
-Following are the details.
+2. Then, PID Error is calculated on this Weighted Average Value.
 3. Based on the PID error direction is determined and motor speed is updated.
+
+Following are the details.
 ### 1. Weighted Average of five Sensors
 The five sensor values are processed to compute the weighted avg of readings.
-The `sensor_sum` calculation formula is:
+The `sensor_avg` calculation formula is:
 $$
-sensor\_sum = \frac{\sum (sensor_i \times weight_i)}{\sum sensor_i}
+sensor\_avg = \frac{\sum (sensor_i \times weight_i)}{\sum sensor_i}
 $$
-#### Wights: 
-- weights choosen: `[-1000, -500, 0, 500, 1000]`
-- The `middle sensor's weight is zero` because it should contribute no error when perfectly aligned.
-- `Negative weights` for left-side sensors represent deviations to the `left`.
-- `Positive weights` for right-side sensors represent deviations to the `right`.
+#### Weights: 
+- weights choosen: **[-1000, -500, 0, 500, 1000]**
+- The **middle sensor's weight is zero** because it should contribute no error when perfectly aligned.
+- **Negative weights** for left-side sensors represent deviations to the **left**.
+- **Positive weights** for right-side sensors represent deviations to the **right**.
 - Ensure error direction matches deviation (negative for left, positive for right).
 - Provide sufficient resolution for integer-only calculations by scaling values appropriately.
 ### 2. PID Error Calculation
+The ideal `sensor_avg` should be 0. So, the error is `sensor_avg` itself.
 The PID error is computed using proportional, integral, and derivative components:
-- The equation used is: </br>
-$$
-PID_{error} = \frac{K_p P + K_i I + K_d D}{K_{scale}}
-$$
+```c
+node calPidError(value: int) returns (pid_error: int)
+var p, i, d: int;
+let
+     p = value;
+     (* Integral term with overflow prevention *)
+     i = if ((0->pre(i) + value) <= max_i) 
+            then (0->pre(i) + value) 
+         else 
+            max_i;
+     d = value - 0->pre(value);
+     pid_error = (kp*p + ki*i + kd*d) / kscale;
+tel
+```
 $$ \text{Here, we use} K\_scale \text{ to approximate floating-point division using integer arithmetic.}$$
 - **`max_i = 200,000,000`**: Limits the integral term to prevent overflow during long-term accumulation.
 ### 3. Direction and motor speed update
 #### a. Determining Direction
-- `all black` -> stop
-- `all white` -> move backward
-- `no error` -> move forward
-- `Negative error` -> turn left
-- `Positive error` -> turn right
+```c
+     if sensor_sum > (black_thresh*5) then 0  -- all black -> stop
+else if sensor_sum < (white_thresh*5) then 4  -- all white -> backward
+else if pid_error = 0 then 1  -- no error -> move forward
+else if sensor_avg < 0 then 2  -- Negative error -> turn left
+else if sensor_avg > 0 then 3  -- Positive error -> turn right
+else 0; -- fallback/default
+```
 #### b. Adjusting Motor Speeds
 Adjusting motor speeds based on motor reaction while ensuring they remain within the [0,100] range.
 
@@ -99,8 +115,6 @@ v_r = safe_motor_update(50, -1*pid_error);
 ## Simulation Conditions and Outputs
 - [YouTube Link](https://youtube.com/)
 ### Input/Output table
-Note: in comment +-x means left motor speed increases by around x and right motor spped decreases by x.
-      similarly, -+x means left motor speed decreases and right motor speed increases.
 | Step | sen0  | sen1  | sen2  | sen3  | sen4  | v_l | v_r | dir | comment     |
 |------|-------|-------|-------|-------|-------|-----|-----|-----|-------------|
 | 1    | 9     | 3     | 995   | 2     | 2     | 50  | 50  | 1   | straight |

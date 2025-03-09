@@ -36,6 +36,8 @@ const kp: int = 6 -- effective kp/kscale
 const kd: int = 0 -- effective kd/kscale
 const ki: int = 0 -- effective ki/kscale
 const max_i: int = 200000000  -- to prevent integral overflow
+(* accelaration param *)
+const acc_thresh: int = 2
 (********************************
 CONFIGURATION CONSTANTS END
 *********************************)
@@ -118,9 +120,12 @@ let
             do
                 automaton
                     state Straight
+                        var stcounter, accelarate: int;
                         do
-                            v_l = 50 -> safe_motor_update(pre(v_l), 5);
-                            v_r = 50 -> safe_motor_update(pre(v_r), 5);
+                            stcounter = 0 -> if pre(stcounter) >= acc_thresh then 1 else pre(stcounter) + 1;
+                            accelarate = if stcounter >= acc_thresh then 5 else 0;
+                            v_l = 50 -> safe_motor_update(pre(v_l), accelarate);
+                            v_r = 50 -> safe_motor_update(pre(v_r), accelarate);
                         unless not (local_dir = 1) then Turn
                     state Turn
                         do
