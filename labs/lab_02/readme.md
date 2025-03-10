@@ -69,13 +69,13 @@ $$
 - If error is negative take left else if positive take right.
 - To simulate floating operations, large weights (e.g. 10 has been taken as 10000) have been choosen to give sufficient resolution in integer operations.
 ### 2. PID Error Calculation
-In ideal condition only the middle sensor would be on black so ideal `sensor_avg` should be 0. 
-```
+In ideal condition only the middle sensor would be on black so `ideal_value` would be 0. 
+$$
 error 
-= sensor_avg - ideal_Value
-= sensor_avg
-```
-The PID error is computed on `sensor_avg` using proportional, integral, and derivative components:
+= sensor\_avg - ideal\_Value
+= sensor\_avg
+$$
+So, The PID error is computed on `sensor_avg` using proportional, integral, and derivative components:
 ```c
 node calPidError(value: int) returns (pid_error: int)
 var p, i, d: int;
@@ -117,7 +117,7 @@ v_r = safe_motor_update(50, -1*pid_error);
 ```
 
 ## Simulation Conditions and Outputs
-- [YouTube Link](https://youtube.com/)
+- [YouTube Link](https://www.youtube.com/watch?v=TY4n4BmzdB4)
 ### Input/Output table
 | Step | sen0  | sen1  | sen2  | sen3  | sen4  | v_l | v_r | dir | comment     |
 |------|-------|-------|-------|-------|-------|-----|-----|-----|-------------|

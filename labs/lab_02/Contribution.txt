@@ -1,7 +1,7 @@
-- Design and discussions
-- Heptagon implementation
-- Inputs generation
-- Parameter Tuning
-- readme.md
-- video record
-- code and docs review
+- Design and discussions: everyone
+- code and docs review: everyone
+- Heptagon implementation: Arnab
+- Inputs generation: Arif
+- Parameter Tuning: Soumik
+- readme.md: Santanu
+- video record: Santanu
