@@ -27,7 +27,7 @@ This document explains the implementation of a PID-based line-following robot in
 ## Scenarios Considered
 - **straight** line => **neutral** (left and right motor velocity @50)
   - if reading **straight is continued** for some cycles => **accelerate** (increase both motor velocity by 5)
-- differnet types of turns in both left and right direction. [+- means one motor velocity is increased while the other is decreased based on direction]
+- different types of turns in both left and right direction. [+- means one motor velocity is increased while the other is decreased based on direction]
   1. **Minor Turn**: Less than 45° => **velocity +- ~10**
   2. **Angled Turn**: 45° to 90° => **velocity +- ~25**
   3. **Sharp Turn**: 90°-135° => **velocity +- ~35**
@@ -62,12 +62,12 @@ $$
 sensor\_avg = \frac{\sum (sensor_i \times weight_i)}{\sum sensor_i}
 $$
 #### Weights: 
-- weights choosen: **[-1000, -500, 0, 500, 1000]**
+- weights chosen: **[-1000, -500, 0, 500, 1000]**
 - The **middle sensor's weight is zero** because it should contribute no error when perfectly aligned.
 - **Negative weights** for left-side sensors represent deviations to the **left**.
 - **Positive weights** for right-side sensors represent deviations to the **right**.
 - If error is negative take left else if positive take right.
-- To simulate floating operations, large weights (e.g. 10 has been taken as 10000) have been choosen to give sufficient resolution in integer operations.
+- To simulate floating operations, large weights (e.g. 10 has been taken as 10000) have been chosen to give sufficient resolution in integer operations.
 ### 2. PID Error Calculation
 In ideal condition only the middle sensor would be on black so `ideal_value` would be 0. 
 $$
