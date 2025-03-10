@@ -258,7 +258,7 @@ let create_input v_name v_ty n (table:GPack.table) =
   match v_ty with
   | Tid{ qual = Pervasives; name = "int" } ->
       new scale_input
-        0. (-60.) 60. float_of_string
+        0. (0.) 1024. float_of_string
         (fun v ->
           string_of_int (int_of_float v))
         0
@@ -356,7 +356,7 @@ let main () =
       "-sim2chro",Arg.Unit (fun () -> viewer := (Some Sim2chro); format := Rif),doc_sim2chro;
       "-gtkwave",Arg.Unit (fun () -> viewer := (Some GtkWave); format := VCD),doc_gtkwave;
       "-noviewer",Arg.Unit (fun () -> viewer := None),doc_noviewer;
-      "-vcd",Arg.Unit (fun () -> format := VCD),doc_vcd
+      "-vcd",Arg.Unit (fun () -> format := VCD),doc_vcd;
     ] in
   Arg.parse
     arg_list
@@ -428,6 +428,7 @@ let main () =
       ~packing:period_part#add
       () in
   (* Step, autostep, random, run, quit buttons *)
+  let bfile = GButton.button ~label:"Bulk Input" ~packing:low_part#add () in
   let bstep  = GButton.button ~label:"Step" ~packing:low_part#add () in
   let bastep  =
     GButton.toggle_button ~label:"Autostep" ~packing:low_part#add () in
@@ -720,16 +721,66 @@ let main () =
     flush oc_simview
   in
 
+  let read_input_file filename =
+    let lines = ref [] in
+    let ic = open_in filename in
+    try
+      while true do
+        let line = input_line ic in
+        if line <> "" && not (Str.string_match (Str.regexp "//") line 0) then
+          let words = Str.split (Str.regexp " +") line in
+          lines := words :: !lines
+      done; []
+    with End_of_file ->
+      close_in ic;
+      List.rev !lines
+    in
+
+  let input_file = ref "" in
+  let input_lines = ref [] in
+  let input_index = ref 0 in
+
+  let update_ui_with_input () =
+    if !input_index < List.length !input_lines then
+      let values = List.nth !input_lines !input_index in
+      incr input_index;
+      List.iter2
+        (fun (_name, _ty, input, _chrono, _save) value ->
+          input#set_input value)
+        inputs
+        values
+  in
+  
+  let select_input_file () =
+    let dlg = GWindow.file_chooser_dialog ~action:`OPEN () in
+    dlg#add_select_button_stock `OPEN `OPEN_EVENT;
+    dlg#add_button_stock `CANCEL `CANCEL_EVENT;
+    let callback evt =
+      match evt with
+      | `DELETE_EVENT -> ()
+      | `CANCEL_EVENT -> dlg#misc#hide ()
+      | `OPEN_EVENT ->
+        begin match dlg#filename with
+          | None -> ()
+          | Some f ->
+            input_file := f;
+            input_lines := read_input_file f;
+            input_index := 0;
+            update_ui_with_input ()
+        end;
+        dlg#misc#hide ()
+    in
+    ignore(dlg#connect#response ~callback:callback);
+    dlg#show ()
+  in
+  
   let step () =
     incr nb_step;
     (* write inputs to simulating process *)
     let input_strings =
       List.fold_left
         (fun acc (_name,_ty,input,chrono,save) ->
-          let s =
-            if brandom#active
-            then input#get_random_input
-            else input#get_input in
+          let s = input#get_input in
           input#reset;
           Printf.fprintf oc_sim "%s\n" s;
           save := s::!save;
@@ -781,7 +832,11 @@ let main () =
     | VCD -> step_vcd ()
     end;
 
-    step_label#set_label ("Step: " ^ (string_of_int !nb_step))
+    step_label#set_label ("Step: " ^ (string_of_int !nb_step));
+  
+    (* Update UI with the next set of values from the input file *)
+    if !input_file <> "" && !input_index < List.length !input_lines then
+      update_ui_with_input ()
   in
 
   let toggle_autostep () =
@@ -823,6 +878,7 @@ let main () =
   ignore (brun#connect#clicked ~callback:toggle_run);
   ignore (bquit#connect#clicked ~callback:quit);
   ignore (win#connect#destroy ~callback:quit);
+  ignore (bfile#connect#clicked ~callback:select_input_file);
   win#show ();
   GtkThread.main () ;;
 
