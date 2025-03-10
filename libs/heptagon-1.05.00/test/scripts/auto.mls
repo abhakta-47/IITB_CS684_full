@@ -1,0 +1,17 @@
+node f(x1 : int; x2 : int; x3 : int; x4 : int; x5 : int; x6 : int; x7 : int;
+        x8 : int; x9 : int; x10 : int)
+returns (y1 : int; y2 : int; y3 : int; y4 : int; y5 : int; y6 : int;
+          y7 : int; y8 : int; y9 : int; y10 : int)
+let
+  y10 = x10;
+  y9 = (x9 + y10);
+  y8 = (x8 + y9);
+  y7 = (x7 + y8);
+  y6 = (x6 + y7);
+  y5 = (x5 + y6);
+  y4 = (x4 + y5);
+  y3 = (x3 + y4);
+  y2 = (x2 + y3);
+  y1 = (x1 + y2)
+tel
+
