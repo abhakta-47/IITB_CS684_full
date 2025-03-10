@@ -7,6 +7,10 @@ Submitted by:
 - Arnab Bhakta (23m0835)
 ```
 
+### YouTube Demo link
+- [YouTube Link](https://www.youtube.com/watch?v=TY4n4BmzdB4)
+
+
 ## Overview
 This document explains the implementation of a PID-based line-following robot in Heptagon. The robot uses five white-line sensors to detect a black line on a white surface and adjusts its motor velocities accordingly to stay on track.
 
@@ -118,6 +122,8 @@ v_r = safe_motor_update(50, -1*pid_error);
 
 ## Simulation Conditions and Outputs
 - [YouTube Link](https://www.youtube.com/watch?v=TY4n4BmzdB4)
+### Screenshot
+![](static/ipop.png)
 ### Input/Output table
 | Step | sen0  | sen1  | sen2  | sen3  | sen4  | v_l | v_r | dir | comment     |
 |------|-------|-------|-------|-------|-------|-----|-----|-----|-------------|
