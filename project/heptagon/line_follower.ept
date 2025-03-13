@@ -1,0 +1,145 @@
+(*********************************************************************************
+Inputs:
+    Values from 5 White Line Sensors.
+    Each Sensor value ranges between: 0 to 1023.
+    On white surface, sensor values are low and for black surface, sensor values are high.
+Outputs:
+    3 for controlling the motion of the Robot (1 for Direction and 2 for Motor's velocities).
+    From the final heptagon node, 3 outputs are required: 2 velocity values (of left and right motors) and direction.
+    Directions list:
+        Direction	Representation
+        Stop	        0
+        Forward	        1
+        Left	        2
+        Right	        3
+        Backward	    4
+    Motor velocity ranges between 0 to 100. It should not be negative or greater than 100.
+- Consider a black line on white surface.
+- Use PID controller for line following.
+- You are free to make assumptions regarding
+    readings of white line sensors at different instances,
+    distance covered by robot for different motions in single step etc.
+**********************************************************************************)
+
+(**********************************
+CONFIGURATION CONSTANTS START
+***********************************)
+(* Sensor related *)
+const sensor_min: int = 0
+const sensor_max: int = 1023
+const sensor_weights: int^5 = [-1000, -500, 0, 500, 1000]
+(* PID gains and ranges *)
+(* Gains should be determined through field trials *)
+(* for float approximation kscale is used effective k* would be k*/kscale *)
+const kscale: int = 100  -- Using integer division for scaling down
+const kp: int = 6 -- effective kp/kscale
+const kd: int = 0 -- effective kd/kscale
+const ki: int = 0 -- effective ki/kscale
+const max_i: int = 200000000  -- to prevent integral overflow
+(* accelaration param *)
+const acc_thresh: int = 2
+(********************************
+CONFIGURATION CONSTANTS END
+*********************************)
+
+(* PID error computation *)
+node calPidError(value: int) returns (pid_error: int)
+var p, i, d: int;
+let
+     p = value;
+     (* Integral term with overflow prevention *)
+     i = if ((0->pre(i) + value) <= max_i) then (0->pre(i) + value) else max_i;
+     d = value - 0->pre(value);
+     pid_error = (kp*p + ki*i + kd*d) / kscale;
+tel
+
+(* Computes weighted sum of sensor values *)
+node weightedSum(sen_value, sen_weight, prev_sum: int) returns (weighted_sum: int)
+let
+    weighted_sum = prev_sum + sen_value * sen_weight;
+tel
+
+(* Computes weighted avg of sensor values *)
+node senWeightedAvg(sen: int^5) returns (sensor_avg: int)
+var aritmetic_sum: int;
+let
+    aritmetic_sum = fold<<5>>(+)(sen, 0);
+    sensor_avg = if aritmetic_sum = 0 then 100000 else fold<<5>>weightedSum(sen, sensor_weights, 0) / aritmetic_sum;
+tel
+
+(* node count_white(val, prev: int) returns (new: int)
+let
+    new = if val < 200 then prev+1 else prev;
+tel
+node white_or_black_map(sen0, sen1, sen2, sen3, sen4: int) returns (mapped_sen: int^5)
+let
+    raw_sen = [sen0, sen1, sen2, sen3, sen4];
+    compliment_sen = [sensor_max - sen[0], sensor_max - sen[1], sensor_max - sen[2], sensor_max - sen[3], sensor_max - sen[4]];
+    white_count = fold<<5>>(count_white)(raw_sen, 0);
+    black_count = 5 - white_count;
+    mapped_sen = if white_count >= black_count then raw_sen else compliment_sen;
+tel *)
+
+(*  esure motor speed stays in range [0,100] *)
+const white_thresh: int = 100 -- sensor value less than white_thresh guarantees white
+const black_thresh: int = 800 -- sensor value more than black_thresh guarantees black
+node safe_motor_update(cur_speed, change: int) returns (new_speed: int)
+let
+    new_speed =     if (cur_speed + change) > 100 then 100
+                    else if (cur_speed + change) < 0 then 0  
+                    else (cur_speed + change);
+tel
+
+(* Main function for line following *)
+node main(sen0, sen1, sen2, sen3, sen4: int) returns (v_l, v_r, dir: int)
+var sen: int^5; sensor_arithmetic_sum, sensor_avg, pid_error: int;
+last local_dir: int = 1;
+let
+    -- Convert sensor readings to black-line-on-white-surface representation
+    (* -- black line on white *)
+    (* sen = [sen0, sen1, sen2, sen3, sen4]; *)
+    -- white line on black
+    sen = [sensor_max - sen0, sensor_max - sen1, sensor_max - sen2, sensor_max - sen3, sensor_max - sen4];
+    
+    -- Compute error and PID error
+    sensor_arithmetic_sum = fold<<5>>(+)(sen, 0);
+    sensor_avg = senWeightedAvg(sen);
+    pid_error = calPidError(sensor_avg);
+
+    -- Determine robot movement direction
+    local_dir =  if sensor_arithmetic_sum > (black_thresh*5)    then 0  -- all black -> stop
+            else if sensor_arithmetic_sum < (white_thresh*5)    then 4  -- all white -> move backward
+            else if pid_error = 0                               then 1  -- no error -> move forward
+            else if pid_error < 0                              then 2  -- Negative error -> turn left
+            else if pid_error > 0                              then 3  -- Positive error -> turn right
+            else                                                     0; -- fallback/defult
+    dir = local_dir;
+
+    automaton
+        state Normal
+            do
+                automaton
+                    state Straight
+                        var stcounter, accelerate: int;
+                        do
+                            stcounter = 0 -> if pre(stcounter) >= acc_thresh then 1 else pre(stcounter) + 1;
+                            accelerate = if stcounter >= acc_thresh then 5 else 0;
+                            v_l = 50 -> safe_motor_update(pre(v_l), accelerate);
+                            v_r = 50 -> safe_motor_update(pre(v_r), accelerate);
+                        unless not (local_dir = 1) then Turn
+                    state Turn
+                        do
+                            v_l = safe_motor_update(50, pid_error);
+                            v_r = safe_motor_update(50, -1*pid_error);
+                        unless (local_dir = 1) then Straight 
+                end
+            until local_dir = 4 then Backward
+            unless local_dir = 0 then Stop
+        state Backward
+            do v_l=50; v_r=50;
+            unless not (local_dir = 4) then Normal
+        state Stop
+            do v_l=0; v_r=0;
+            unless not (local_dir = 0) then Normal
+    end
+tel
