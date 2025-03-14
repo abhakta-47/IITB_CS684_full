@@ -50,7 +50,7 @@ void setup() {
     // Serial.println("calibrate done");
     // Serial.println();
     // delay(10000);
-    _mem.ck = Line_follower__St_Idle;
+    _mem.ck = Line_follower__St_1_Idle;
 }
 
 void loop() {
@@ -69,28 +69,43 @@ void loop() {
     // Serial.print(" ");
     // Serial.print(_res.processed_sen[4]);
     switch (_mem.ck) {
-    case Line_follower__St_Turn:
+    case Line_follower__St_1_Turn:
         Serial.print("Turn");
         break;
-    case Line_follower__St_Straight:
+    case Line_follower__St_1_Straight:
         Serial.print("Straight");
         break;
-    case Line_follower__St_Stop:
+    case Line_follower__St_1_Stop:
         Serial.print("Stop");
         break;
-    case Line_follower__St_Start:
+    case Line_follower__St_1_Start:
         Serial.print("Start");
         break;
-    case Line_follower__St_Recovery:
+    case Line_follower__St_1_Recovery:
         Serial.print("Recovery");
         break;
-    case Line_follower__St_Intersection:
-        Serial.print("Intersection");
+    case Line_follower__St_1_Intersection:
+        Serial.print("Intersection.");
+        switch (_mem.v_135) {
+        case Line_follower__St_GoStraight:
+            Serial.print("GoStraight");
+            break;
+        case Line_follower__St_GoRight:
+            Serial.print("GoRight");
+            break;
+        case Line_follower__St_GoLeft:
+            Serial.print("GoLeft");
+            break;
+        default:
+            Serial.print(_mem.v_135);
+            break;
+        }
+        Serial.print(_mem.v_135);
         break;
-    case Line_follower__St_Idle:
+    case Line_follower__St_1_Idle:
         Serial.print("Idle");
         break;
-    // case Line_follower__St_Brake:
+    // case Line_follower__St_1_Brake:
     //     Serial.print("Brake");
     //     break;
     default:
@@ -105,42 +120,56 @@ void loop() {
     Serial.print(_res.v_r);
 
     display.clearDisplay();
-    display.setTextSize(2);
+    display.setTextSize(1);
     display.setTextColor(WHITE);
     display.setCursor(0, 0);
-    // display.print(_res.processed_sen[0]);
-    // display.print(" ");
-    // display.print(_res.processed_sen[1]);
-    // display.println(" ");
-    // display.print(_res.processed_sen[2]);
-    // display.println(" ");
-    // display.print(_res.processed_sen[3]);
-    // display.print(" ");
-    // display.print(_res.processed_sen[4]);
-    // display.println(" ");
+    display.print(_res.processed_sen[0]);
+    display.print(" ");
+    display.print(_res.processed_sen[1]);
+    display.println(" ");
+    display.print(_res.processed_sen[2]);
+    display.println(" ");
+    display.print(_res.processed_sen[3]);
+    display.print(" ");
+    display.print(_res.processed_sen[4]);
+    display.println(" ");
     switch (_mem.ck) {
-    case Line_follower__St_Turn:
+    case Line_follower__St_1_Turn:
         display.print("Turn");
         break;
-    case Line_follower__St_Straight:
+    case Line_follower__St_1_Straight:
         display.print("Straight");
         break;
-    case Line_follower__St_Stop:
+    case Line_follower__St_1_Stop:
         display.print("Stop");
         break;
-    case Line_follower__St_Start:
+    case Line_follower__St_1_Start:
         display.print("Start");
         break;
-    case Line_follower__St_Recovery:
+    case Line_follower__St_1_Recovery:
         display.print("Recovery");
         break;
-    case Line_follower__St_Intersection:
-        display.print("Intersection");
+    case Line_follower__St_1_Intersection:
+        display.print("Int.");
+        switch (_mem.v_135) {
+        case Line_follower__St_GoStraight:
+            display.print("GoStr");
+            break;
+        case Line_follower__St_GoRight:
+            display.print("GoRight");
+            break;
+        case Line_follower__St_GoLeft:
+            display.print("GoLeft");
+            break;
+        default:
+            display.print(_mem.v_135);
+            break;
+        }
         break;
-    case Line_follower__St_Idle:
+    case Line_follower__St_1_Idle:
         display.print("Idle");
         break;
-    // case Line_follower__St_Brake:
+    // case Line_follower__St_1_Brake:
     //     display.print("Brake");
     //     break;
     default:
@@ -168,8 +197,14 @@ void loop() {
     case 2:
         left();
         break;
+    case 20:
+        forward_left();
+        break;
     case 3:
         right();
+        break;
+    case 30:
+        forward_right();
         break;
     case 4:
         backward();

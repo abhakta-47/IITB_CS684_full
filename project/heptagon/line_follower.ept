@@ -38,8 +38,8 @@ const ki: int = 0 -- effective ki/kscale
 const max_i: int = 200000000  -- to prevent integral overflow
 (* accelaration param *)
 const acc_thresh: int = 10
-const base_sraight_speed: int = 50
-const base_turn_speed: int = 40
+const base_sraight_speed: int = 30
+const base_turn_speed: int = 30
 (********************************
 CONFIGURATION CONSTANTS END
 *********************************)
@@ -106,6 +106,7 @@ var line_switched:bool;  raw_sen, norm_sen, sen_white_line, sen_black_line: int^
 let 
     raw_sen = [ssen0, ssen1, ssen2, ssen3, ssen4];
     norm_sen = map<<5>>normalize_value(min_vals, max_vals,raw_sen);
+
     sen0 = norm_sen[0]; sen1 = norm_sen[1]; sen2 = norm_sen[2]; sen3 = norm_sen[3]; sen4 = norm_sen[4]; 
     line_switched = false -> if pre(line_switched) then pre(line_switched) else (sen0>=black_thresh and sen1>=black_thresh and sen2<=white_thresh and sen3>=black_thresh and sen4>=black_thresh);
     sen_white_line = [sen0, sen1, sen2, sen3, sen4];
@@ -114,18 +115,21 @@ let
 tel
 
 (* Main function for line following *)
-node main(sen0, sen1, sen2, sen3, sen4: int) returns ( v_l, v_r, dir: int)
-var sen: int^5; sensor_arithmetic_sum, sensor_avg, pid_error: int;
+node main(sen0, sen1, sen2, sen3, sen4: int) returns ( v_l, v_r, dir: int; processed_sen: int^5)
+var sen: int^5; sensor_arithmetic_sum, sensor_avg, pid_error: int; all_low, all_high, middle_high, middle_low: bool;
 last local_dir: int = 1;
 let
     sen = process_raw_Sen_values(sen0, sen1, sen2, sen3, sen4);
-    (* processed_sen = sen; *)
+    processed_sen = sen;
     -- Compute error and PID error
     sensor_arithmetic_sum = fold<<5>>(+)(sen, 0);
     sensor_avg = senWeightedAvg(sen);
     pid_error = calPidError(sensor_avg);
 
     -- Determine robot movement direction
+    all_low =  (sen[0]<=white_thresh and sen[1]<=white_thresh and sen[2]<=white_thresh and sen[3]<=white_thresh and sen[4]<=white_thresh);
+    middle_high =  (sen[0]<=white_thresh and sen[1]<=white_thresh and sen[2]>=black_thresh and sen[3]<=white_thresh and sen[4]<=white_thresh);
+    all_high =  (sen[0]>=black_thresh and sen[1]>=black_thresh and sen[2]>=black_thresh and sen[3]>=black_thresh and sen[4]>=black_thresh);
     local_dir =  if sensor_arithmetic_sum > (black_thresh*5)    then 6  -- intersection -> right
             else if sensor_arithmetic_sum < (white_thresh*5)    then 4  -- all white -> move backward
             else if pid_error = 0                               then 1  -- no error -> move forward
@@ -149,10 +153,6 @@ let
             unless local_dir = 2 or local_dir = 3 then Turn
                 |  local_dir=4 then Recovery
                 |  local_dir = 6 then Intersection
-        (* state Brake
-            var ncycles: int;
-            do v_l=0; v_r=0; dir=5; ncycles = 0->pre(ncycles) + 1;
-            until ncycles>=3 then Turn *)
         state Turn
             do 
                 v_l = safe_motor_update(base_turn_speed, if pid_error >= 0 then pid_error else -1*pid_error);
@@ -161,23 +161,38 @@ let
             unless local_dir = 4 then Recovery
                 |  local_dir = 1 then Straight
         state Intersection
-            var initial: int;
+            var next_dir: int;
             do
-                v_l = base_sraight_speed;
-                v_r = base_sraight_speed;
-                initial = 0 -> pre(initial) + 1;
-                dir = if initial=0 then 3 else 2;
-            until true then Straight
-        (* state Backward
-            do
-                v_l = safe_motor_update(base_turn_speed, if pid_error >= 0 then pid_error else -1*pid_error);
-                v_r = safe_motor_update(base_turn_speed, if pid_error >= 0 then pid_error else -1*pid_error);
-                dir = 4;
-            until local_dir = 4 then Recovery
-            unless local_dir = 0 then Stop *)
+                automaton
+                    state GoStraight
+                        do
+                            v_l = 30;
+                            v_r = 30;
+                            dir = 1;
+                            next_dir = 0;
+                        until all_low then GoRight
+                            | middle_high then GoLeft
+                    state GoLeft
+                        var complete: bool;
+                        do
+                            v_l = 30;
+                            v_r = 30;
+                            dir = 2;
+                            complete = if false->pre(complete) then true else (local_dir = 2);
+                            next_dir = if complete then 2 else 0;
+                    state GoRight
+                        var complete: bool;
+                        do
+                            v_l = 30;
+                            v_r = 30;
+                            dir = 3;
+                            complete = if false->pre(complete) then true else (local_dir = 1);
+                            next_dir = if complete then 1 else 0;
+                end
+            until next_dir=1 then Straight
+                | next_dir=2 or next_dir=3 then Turn
         state Recovery
             do v_l=base_sraight_speed*3/4; v_r=base_sraight_speed*3/4; dir=4;
-            until local_dir = 6 continue Intersection
             unless local_dir=1 then Straight
                 |  local_dir=2 or local_dir=3 then Turn
         state Stop
