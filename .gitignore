@@ -2,4 +2,6 @@ test_stuff/
 *.o
 *.bin
 theory/
+workspace/
+project/src/line_follower*
 # submission files

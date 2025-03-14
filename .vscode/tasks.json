@@ -2,7 +2,7 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Parse and Build",
+            "label": "Heptagon: Parse and Build",
             "type": "shell",
             "command": "build_run",
             "args": [
@@ -24,7 +24,7 @@
             "problemMatcher": []
         },
         {
-            "label": "Parse and Build (cmd)",
+            "label": "Heptagon: Parse and Build (cmd)",
             "type": "shell",
             "command": "build_run",
             "args": [
@@ -64,7 +64,7 @@
             "problemMatcher": []
         },
         {
-            "label": "Build line_follower",
+            "label": "Project: Build line_follower",
             "type": "shell",
             "command": [
                 "build_run",
@@ -92,16 +92,16 @@
             "problemMatcher": []
         },
         {
-            "label": "upload monitor",
+            "label": "Project: upload monitor",
             "command": "${command:platformio-ide.uploadAndMonitor}",
         },
         {
-            "label": "build and push",
+            "label": "Project: build upload monitor",
             "type": "shell",
             "command": "",
             "dependsOn": [
-                "Build line_follower",
-                "upload monitor"
+                "Project: Build line_follower",
+                "Project: upload monitor"
             ],
             "group": {
                 "kind": "build",

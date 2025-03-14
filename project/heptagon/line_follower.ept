@@ -31,13 +31,15 @@ const sensor_weights: int^5 = [-1000, -500, 0, 500, 1000]
 (* PID gains and ranges *)
 (* Gains should be determined through field trials *)
 (* for float approximation kscale is used effective k* would be k*/kscale *)
-const kscale: int = 100  -- Using integer division for scaling down
-const kp: int = 6 -- effective kp/kscale
-const kd: int = 0 -- effective kd/kscale
+const kscale: int = 10000  -- Using integer division for scaling down
+const kp: int = 20 -- effective kp/kscale
+const kd: int = 10 -- effective kd/kscale
 const ki: int = 0 -- effective ki/kscale
 const max_i: int = 200000000  -- to prevent integral overflow
 (* accelaration param *)
-const acc_thresh: int = 2
+const acc_thresh: int = 10
+const base_sraight_speed: int = 50
+const base_turn_speed: int = 40
 (********************************
 CONFIGURATION CONSTANTS END
 *********************************)
@@ -86,60 +88,100 @@ const black_thresh: int = 800 -- sensor value more than black_thresh guarantees 
 node safe_motor_update(cur_speed, change: int) returns (new_speed: int)
 let
     new_speed =     if (cur_speed + change) > 100 then 100
-                    else if (cur_speed + change) < 0 then 0  
+                    else if (cur_speed + change) < 0 then 0
                     else (cur_speed + change);
 tel
 
+const min_vals: int^5 = [420, 490, 430, 880, 340]
+const max_vals: int^5 = [800, 860, 820, 950, 690]
+node normalize_value(min_val, max_val, value: int) returns (norm_val: int)
+var safe_val: int;
+let
+    safe_val = if value >= max_val then max_val else if value <= min_val then min_val else value;
+    norm_val = ((safe_val - min_val)*1000)/(max_val - min_val)
+tel 
+
+node process_raw_Sen_values(ssen0, ssen1, ssen2, ssen3, ssen4: int) returns (sen: int^5)
+var line_switched:bool;  raw_sen, norm_sen, sen_white_line, sen_black_line: int^5; sen0, sen1, sen2, sen3, sen4: int;
+let 
+    raw_sen = [ssen0, ssen1, ssen2, ssen3, ssen4];
+    norm_sen = map<<5>>normalize_value(min_vals, max_vals,raw_sen);
+    sen0 = norm_sen[0]; sen1 = norm_sen[1]; sen2 = norm_sen[2]; sen3 = norm_sen[3]; sen4 = norm_sen[4]; 
+    line_switched = false -> if pre(line_switched) then pre(line_switched) else (sen0>=black_thresh and sen1>=black_thresh and sen2<=white_thresh and sen3>=black_thresh and sen4>=black_thresh);
+    sen_white_line = [sen0, sen1, sen2, sen3, sen4];
+    sen_black_line = [sensor_max - sen0, sensor_max - sen1, sensor_max - sen2, sensor_max - sen3, sensor_max - sen4];
+    sen = if line_switched then sen_black_line else sen_white_line;
+tel
+
 (* Main function for line following *)
-node main(sen0, sen1, sen2, sen3, sen4: int) returns (v_l, v_r, dir: int)
+node main(sen0, sen1, sen2, sen3, sen4: int) returns ( v_l, v_r, dir: int)
 var sen: int^5; sensor_arithmetic_sum, sensor_avg, pid_error: int;
 last local_dir: int = 1;
 let
-    -- Convert sensor readings to black-line-on-white-surface representation
-    (* -- black line on white *)
-    (* sen = [sen0, sen1, sen2, sen3, sen4]; *)
-    -- white line on black
-    sen = [sensor_max - sen0, sensor_max - sen1, sensor_max - sen2, sensor_max - sen3, sensor_max - sen4];
-    
+    sen = process_raw_Sen_values(sen0, sen1, sen2, sen3, sen4);
+    (* processed_sen = sen; *)
     -- Compute error and PID error
     sensor_arithmetic_sum = fold<<5>>(+)(sen, 0);
     sensor_avg = senWeightedAvg(sen);
     pid_error = calPidError(sensor_avg);
 
     -- Determine robot movement direction
-    local_dir =  if sensor_arithmetic_sum > (black_thresh*5)    then 0  -- all black -> stop
+    local_dir =  if sensor_arithmetic_sum > (black_thresh*5)    then 6  -- intersection -> right
             else if sensor_arithmetic_sum < (white_thresh*5)    then 4  -- all white -> move backward
             else if pid_error = 0                               then 1  -- no error -> move forward
             else if pid_error < 0                              then 2  -- Negative error -> turn left
             else if pid_error > 0                              then 3  -- Positive error -> turn right
             else                                                     0; -- fallback/defult
-    dir = local_dir;
 
     automaton
-        state Normal
+        state Idle
+            do v_l=0; v_r=0; dir=0;
+            unless local_dir=6 then Start
+        state Start
+            do v_l=base_sraight_speed; v_r=base_sraight_speed; dir=1;
+            until local_dir=6 then Start
+                | not (local_dir=6) then Straight
+        state Straight
             do
-                automaton
-                    state Straight
-                        var stcounter, accelerate: int;
-                        do
-                            stcounter = 0 -> if pre(stcounter) >= acc_thresh then 1 else pre(stcounter) + 1;
-                            accelerate = if stcounter >= acc_thresh then 5 else 0;
-                            v_l = 50 -> safe_motor_update(pre(v_l), accelerate);
-                            v_r = 50 -> safe_motor_update(pre(v_r), accelerate);
-                        unless not (local_dir = 1) then Turn
-                    state Turn
-                        do
-                            v_l = safe_motor_update(50, pid_error);
-                            v_r = safe_motor_update(50, -1*pid_error);
-                        unless (local_dir = 1) then Straight 
-                end
-            until local_dir = 4 then Backward
-            unless local_dir = 0 then Stop
-        state Backward
-            do v_l=50; v_r=50;
-            unless not (local_dir = 4) then Normal
+                v_l = base_sraight_speed;
+                v_r = base_sraight_speed;
+                dir = 1;
+            unless local_dir = 2 or local_dir = 3 then Turn
+                |  local_dir=4 then Recovery
+                |  local_dir = 6 then Intersection
+        (* state Brake
+            var ncycles: int;
+            do v_l=0; v_r=0; dir=5; ncycles = 0->pre(ncycles) + 1;
+            until ncycles>=3 then Turn *)
+        state Turn
+            do 
+                v_l = safe_motor_update(base_turn_speed, if pid_error >= 0 then pid_error else -1*pid_error);
+                v_r = safe_motor_update(base_turn_speed, if pid_error >= 0 then pid_error else -1*pid_error);
+                dir = if pid_error > 0 then 3 else 2;
+            unless local_dir = 4 then Recovery
+                |  local_dir = 1 then Straight
+        state Intersection
+            var initial: int;
+            do
+                v_l = base_sraight_speed;
+                v_r = base_sraight_speed;
+                initial = 0 -> pre(initial) + 1;
+                dir = if initial=0 then 3 else 2;
+            until true then Straight
+        (* state Backward
+            do
+                v_l = safe_motor_update(base_turn_speed, if pid_error >= 0 then pid_error else -1*pid_error);
+                v_r = safe_motor_update(base_turn_speed, if pid_error >= 0 then pid_error else -1*pid_error);
+                dir = 4;
+            until local_dir = 4 then Recovery
+            unless local_dir = 0 then Stop *)
+        state Recovery
+            do v_l=base_sraight_speed*3/4; v_r=base_sraight_speed*3/4; dir=4;
+            until local_dir = 6 continue Intersection
+            unless local_dir=1 then Straight
+                |  local_dir=2 or local_dir=3 then Turn
         state Stop
-            do v_l=0; v_r=0;
-            unless not (local_dir = 0) then Normal
+            do v_l=0; v_r=0; dir=0;
+            unless not (local_dir = 0) then Straight
     end
 tel
