@@ -14,6 +14,8 @@ Line_follower__main_mem _mem;
 #define OLED_RESET 9
 #define OLED_SA0 8
 Adafruit_SSD1306 display(OLED_RESET, OLED_SA0);
+Line_follower__st_1 *nor_states;
+Line_follower__st *int_states;
 
 void setup() {
     Serial.begin(115200);
@@ -21,12 +23,12 @@ void setup() {
     display.begin(SSD1306_SWITCHCAPVCC,
                   0x3C); // initialize with the I2C addr 0x3D (for the 128x64)
     // init done
-    // display.clearDisplay();
-    // display.setTextSize(2);
-    // display.setTextColor(WHITE);
-    // display.setCursor(0, 0);
-    // display.println("calibrate");
-    // display.display();
+    display.clearDisplay();
+    display.setTextSize(2);
+    display.setTextColor(WHITE);
+    display.setCursor(0, 0);
+    display.println("hello");
+    display.display();
     // delay(100);
     // for (int i = 0; i < 400; i++) {
     //     trs.calibrate(); // reads all sensors 10 times
@@ -50,7 +52,11 @@ void setup() {
     // Serial.println("calibrate done");
     // Serial.println();
     // delay(10000);
-    _mem.ck = Line_follower__St_1_Idle;
+    _mem.ck = Line_follower__St_2_Idle;
+    nor_states = &(_mem.v_97);
+    int_states = &(_mem.v_113);
+    *nor_states = Line_follower__St_1_Straight;
+    *int_states = Line_follower__St_GoStraight;
 }
 
 void loop() {
@@ -58,129 +64,75 @@ void loop() {
     Line_follower__main_step(sensorValues[0], sensorValues[1], sensorValues[2],
                              sensorValues[3], sensorValues[4], &_res, &_mem);
 
-    Serial.println(" ");
-    // Serial.print(_res.processed_sen[0]);
-    // Serial.print(" ");
-    // Serial.print(_res.processed_sen[1]);
-    // Serial.print(" ");
-    // Serial.print(_res.processed_sen[2]);
-    // Serial.print(" ");
-    // Serial.print(_res.processed_sen[3]);
-    // Serial.print(" ");
-    // Serial.print(_res.processed_sen[4]);
-    switch (_mem.ck) {
-    case Line_follower__St_1_Turn:
-        Serial.print("Turn");
-        break;
-    case Line_follower__St_1_Straight:
-        Serial.print("Straight");
-        break;
-    case Line_follower__St_1_Stop:
-        Serial.print("Stop");
-        break;
-    case Line_follower__St_1_Start:
-        Serial.print("Start");
-        break;
-    case Line_follower__St_1_Recovery:
-        Serial.print("Recovery");
-        break;
-    case Line_follower__St_1_Intersection:
-        Serial.print("Intersection.");
-        switch (_mem.v_135) {
-        case Line_follower__St_GoStraight:
-            Serial.print("GoStraight");
-            break;
-        case Line_follower__St_GoRight:
-            Serial.print("GoRight");
-            break;
-        case Line_follower__St_GoLeft:
-            Serial.print("GoLeft");
-            break;
-        default:
-            Serial.print(_mem.v_135);
-            break;
-        }
-        Serial.print(_mem.v_135);
-        break;
-    case Line_follower__St_1_Idle:
-        Serial.print("Idle");
-        break;
-    // case Line_follower__St_1_Brake:
-    //     Serial.print("Brake");
-    //     break;
-    default:
-        Serial.print(_mem.ck);
-        break;
-    }
-    Serial.print(" => ");
-    Serial.print(_res.dir);
-    Serial.print(" ");
-    Serial.print(_res.v_l);
-    Serial.print(" ");
-    Serial.print(_res.v_r);
-
     display.clearDisplay();
-    display.setTextSize(1);
+    display.setTextSize(3);
     display.setTextColor(WHITE);
     display.setCursor(0, 0);
-    display.print(_res.processed_sen[0]);
-    display.print(" ");
-    display.print(_res.processed_sen[1]);
-    display.println(" ");
-    display.print(_res.processed_sen[2]);
-    display.println(" ");
-    display.print(_res.processed_sen[3]);
-    display.print(" ");
-    display.print(_res.processed_sen[4]);
-    display.println(" ");
+    // display.print(_res.processed_sen[0]);
+    // display.print(" ");
+    // display.print(_res.processed_sen[1]);
+    // display.println(" ");
+    // display.print(_res.processed_sen[2]);
+    // display.println(" ");
+    // display.print(_res.processed_sen[3]);
+    // display.print(" ");
+    // display.print(_res.processed_sen[4]);
+    // display.println(" ");
+    display.print(_mem.line_switched_1);
+    display.print(".");
     switch (_mem.ck) {
-    case Line_follower__St_1_Turn:
-        display.print("Turn");
-        break;
-    case Line_follower__St_1_Straight:
-        display.print("Straight");
-        break;
-    case Line_follower__St_1_Stop:
-        display.print("Stop");
-        break;
-    case Line_follower__St_1_Start:
-        display.print("Start");
-        break;
-    case Line_follower__St_1_Recovery:
-        display.print("Recovery");
-        break;
-    case Line_follower__St_1_Intersection:
-        display.print("Int.");
-        switch (_mem.v_135) {
-        case Line_follower__St_GoStraight:
-            display.print("GoStr");
-            break;
-        case Line_follower__St_GoRight:
-            display.print("GoRight");
-            break;
-        case Line_follower__St_GoLeft:
-            display.print("GoLeft");
-            break;
-        default:
-            display.print(_mem.v_135);
-            break;
-        }
-        break;
-    case Line_follower__St_1_Idle:
+    case Line_follower__St_2_Idle:
         display.print("Idle");
         break;
-    // case Line_follower__St_1_Brake:
-    //     display.print("Brake");
-    //     break;
+    case Line_follower__St_2_Start:
+        display.print("Start");
+        break;
+    case Line_follower__St_2_Normal:
+        display.print("Normal.");
+        switch (*nor_states) {
+        case Line_follower__St_1_Turn:
+            display.print("Turn");
+            break;
+        case Line_follower__St_1_Straight:
+            display.print("Straight");
+            break;
+        case Line_follower__St_1_Stop:
+            display.print("Stop");
+            break;
+        case Line_follower__St_1_Recovery:
+            display.print("Recovery");
+            break;
+        case Line_follower__St_1_Intersection:
+            display.print("Int.");
+            switch (*int_states) {
+            case Line_follower__St_GoStraight:
+                display.print("Str");
+                break;
+            case Line_follower__St_GoRight:
+                display.print("Right");
+                break;
+            case Line_follower__St_GoLeft:
+                display.print("Left");
+                break;
+            default:
+                display.print(*int_states);
+                break;
+            }
+            break;
+        default:
+            display.print(*nor_states);
+            break;
+        }
+
+        break;
+    case Line_follower__St_2_Transition:
+        display.print("Transition");
+        break;
     default:
         display.print(_mem.ck);
         break;
     }
-    display.print(".");
-    display.print(_mem.local_dir_1);
     display.print(" => ");
-    display.print(_res.dir);
-    display.print(" ");
     display.print(_res.v_l);
     display.print(" ");
     display.print(_res.v_r);

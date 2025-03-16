@@ -38,8 +38,8 @@ const ki: int = 0 -- effective ki/kscale
 const max_i: int = 200000000  -- to prevent integral overflow
 (* accelaration param *)
 const acc_thresh: int = 10
-const base_sraight_speed: int = 30
-const base_turn_speed: int = 30
+const base_sraight_speed: int = 40 -- 50
+const base_turn_speed: int = 40 -- 40
 (********************************
 CONFIGURATION CONSTANTS END
 *********************************)
@@ -101,102 +101,108 @@ let
     norm_val = ((safe_val - min_val)*1000)/(max_val - min_val)
 tel 
 
-node process_raw_Sen_values(ssen0, ssen1, ssen2, ssen3, ssen4: int) returns (sen: int^5)
-var line_switched:bool;  raw_sen, norm_sen, sen_white_line, sen_black_line: int^5; sen0, sen1, sen2, sen3, sen4: int;
+node process_raw_Sen_values(ssen0, ssen1, ssen2, ssen3, ssen4: int) returns (line_switched: bool; sen: int^5)
+var  raw_sen, norm_sen, sen_white_line, sen_black_line: int^5; sen0, sen1, sen2, sen3, sen4: int;
 let 
     raw_sen = [ssen0, ssen1, ssen2, ssen3, ssen4];
     norm_sen = map<<5>>normalize_value(min_vals, max_vals,raw_sen);
-
     sen0 = norm_sen[0]; sen1 = norm_sen[1]; sen2 = norm_sen[2]; sen3 = norm_sen[3]; sen4 = norm_sen[4]; 
-    line_switched = false -> if pre(line_switched) then pre(line_switched) else (sen0>=black_thresh and sen1>=black_thresh and sen2<=white_thresh and sen3>=black_thresh and sen4>=black_thresh);
+    line_switched = false -> if pre(line_switched) then pre(line_switched) else (sen0>=black_thresh and sen1>=black_thresh and sen3>=black_thresh and sen4>=black_thresh);
     sen_white_line = [sen0, sen1, sen2, sen3, sen4];
     sen_black_line = [sensor_max - sen0, sensor_max - sen1, sensor_max - sen2, sensor_max - sen3, sensor_max - sen4];
     sen = if line_switched then sen_black_line else sen_white_line;
 tel
 
 (* Main function for line following *)
-node main(sen0, sen1, sen2, sen3, sen4: int) returns ( v_l, v_r, dir: int; processed_sen: int^5)
-var sen: int^5; sensor_arithmetic_sum, sensor_avg, pid_error: int; all_low, all_high, middle_high, middle_low: bool;
-last local_dir: int = 1;
+node main(sen0, sen1, sen2, sen3, sen4: int) returns ( v_l, v_r, dir: int;)
+var sen, raw_sen, norm_sen, sen_white_line, sen_black_line: int^5; sensor_arithmetic_sum, sensor_avg, pid_error: int; all_low, all_high, only_middle_high, only_middle_low: bool;
+(* last : int = 1;  *)
+last line_switched: bool = false;
 let
-    sen = process_raw_Sen_values(sen0, sen1, sen2, sen3, sen4);
-    processed_sen = sen;
+    raw_sen = [sen0, sen1, sen2, sen3, sen4];
+    norm_sen = map<<5>>normalize_value(min_vals,max_vals,raw_sen);
+    (* (line_switched, sen) = process_raw_Sen_values(sen0, sen1, sen2, sen3, sen4); *)
+    sen_white_line = [norm_sen[0], norm_sen[1], norm_sen[2], norm_sen[3], norm_sen[4]];
+    sen_black_line = [sensor_max - norm_sen[0], sensor_max - norm_sen[1], sensor_max - norm_sen[2], sensor_max - norm_sen[3], sensor_max - norm_sen[4]];
+    sen = if (last line_switched) then sen_black_line else sen_white_line;
+    (* processed_sen = sen; *)
     -- Compute error and PID error
     sensor_arithmetic_sum = fold<<5>>(+)(sen, 0);
     sensor_avg = senWeightedAvg(sen);
     pid_error = calPidError(sensor_avg);
 
     -- Determine robot movement direction
-    all_low =  (sen[0]<=white_thresh and sen[1]<=white_thresh and sen[2]<=white_thresh and sen[3]<=white_thresh and sen[4]<=white_thresh);
-    middle_high =  (sen[0]<=white_thresh and sen[1]<=white_thresh and sen[2]>=black_thresh and sen[3]<=white_thresh and sen[4]<=white_thresh);
-    all_high =  (sen[0]>=black_thresh and sen[1]>=black_thresh and sen[2]>=black_thresh and sen[3]>=black_thresh and sen[4]>=black_thresh);
-    local_dir =  if sensor_arithmetic_sum > (black_thresh*5)    then 6  -- intersection -> right
-            else if sensor_arithmetic_sum < (white_thresh*5)    then 4  -- all white -> move backward
-            else if pid_error = 0                               then 1  -- no error -> move forward
-            else if pid_error < 0                              then 2  -- Negative error -> turn left
-            else if pid_error > 0                              then 3  -- Positive error -> turn right
-            else                                                     0; -- fallback/defult
+    all_low =  (sensor_arithmetic_sum < (white_thresh*5));
+    only_middle_high =  (sen[0]<=white_thresh and sen[1]<=white_thresh and sen[2]>=black_thresh and sen[3]<=white_thresh and sen[4]<=white_thresh);
+    only_middle_low =  (sen[0]>=black_thresh and sen[1]>=black_thresh and sen[2]<=white_thresh and sen[3]>=black_thresh and sen[4]>=black_thresh);
 
+    all_high =  (sensor_arithmetic_sum > (black_thresh*5));
     automaton
         state Idle
             do v_l=0; v_r=0; dir=0;
-            unless local_dir=6 then Start
+            unless all_high then Start
         state Start
             do v_l=base_sraight_speed; v_r=base_sraight_speed; dir=1;
-            until local_dir=6 then Start
-                | not (local_dir=6) then Straight
-        state Straight
-            do
-                v_l = base_sraight_speed;
-                v_r = base_sraight_speed;
-                dir = 1;
-            unless local_dir = 2 or local_dir = 3 then Turn
-                |  local_dir=4 then Recovery
-                |  local_dir = 6 then Intersection
-        state Turn
-            do 
-                v_l = safe_motor_update(base_turn_speed, if pid_error >= 0 then pid_error else -1*pid_error);
-                v_r = safe_motor_update(base_turn_speed, if pid_error >= 0 then pid_error else -1*pid_error);
-                dir = if pid_error > 0 then 3 else 2;
-            unless local_dir = 4 then Recovery
-                |  local_dir = 1 then Straight
-        state Intersection
-            var next_dir: int;
+            until not all_high then Normal
+        state Normal
             do
                 automaton
-                    state GoStraight
+                    state Straight
                         do
-                            v_l = 30;
-                            v_r = 30;
+                            v_l = base_sraight_speed;
+                            v_r = base_sraight_speed;
                             dir = 1;
-                            next_dir = 0;
-                        until all_low then GoRight
-                            | middle_high then GoLeft
-                    state GoLeft
-                        var complete: bool;
+                        unless not (pid_error=0) then Turn
+                            |  all_low then Recovery
+                            |  all_high then Intersection
+                    state Turn
+                        do 
+                            v_l = safe_motor_update(base_turn_speed, if pid_error >= 0 then pid_error else -1*pid_error);
+                            v_r = safe_motor_update(base_turn_speed, if pid_error >= 0 then pid_error else -1*pid_error);
+                            dir = if pid_error > 0 then 3 else 2;
+                        unless all_low then Recovery
+                            |  pid_error=0 then Straight
+                    state Intersection
+                        var next_dir: int;
                         do
-                            v_l = 30;
-                            v_r = 30;
-                            dir = 2;
-                            complete = if false->pre(complete) then true else (local_dir = 2);
-                            next_dir = if complete then 2 else 0;
-                    state GoRight
-                        var complete: bool;
-                        do
-                            v_l = 30;
-                            v_r = 30;
-                            dir = 3;
-                            complete = if false->pre(complete) then true else (local_dir = 1);
-                            next_dir = if complete then 1 else 0;
+                            automaton
+                                state GoStraight
+                                    do
+                                        v_l = 30;
+                                        v_r = 30;
+                                        dir = 1;
+                                        next_dir = 0;
+                                    until all_low then GoRight
+                                        | only_middle_high then GoLeft
+                                state GoLeft
+                                    do
+                                        v_l = 30;
+                                        v_r = 30;
+                                        dir = 20;
+                                        next_dir = if pid_error<0 then 2 else 0;
+                                state GoRight
+                                    do
+                                        v_l = 30;
+                                        v_r = 30;
+                                        dir = 30;
+                                        next_dir = if  only_middle_high then 1 else 0;
+                            end
+                        until next_dir=1 then Straight
+                            | next_dir=2 or next_dir=3 then Turn
+                    state Recovery
+                        do v_l=base_sraight_speed*3/4; v_r=base_sraight_speed*3/4; dir=4;
+                        until pid_error=0 then Straight
+                            |  not (pid_error=0) then Turn
+                    state Stop
+                        do v_l=0; v_r=0; dir=0;
                 end
-            until next_dir=1 then Straight
-                | next_dir=2 or next_dir=3 then Turn
-        state Recovery
-            do v_l=base_sraight_speed*3/4; v_r=base_sraight_speed*3/4; dir=4;
-            unless local_dir=1 then Straight
-                |  local_dir=2 or local_dir=3 then Turn
-        state Stop
-            do v_l=0; v_r=0; dir=0;
-            unless not (local_dir = 0) then Straight
+            until (all_high or only_middle_low) and (not line_switched) then Transition
+        state Transition
+            (* var numcycles: int; *)
+            do
+                (* -- go Straight for some time *)
+                v_l=base_sraight_speed; v_r=base_sraight_speed; dir=20;
+                line_switched = true;
+            until not all_low continue Normal
     end
 tel
