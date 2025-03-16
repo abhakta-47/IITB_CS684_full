@@ -92,8 +92,6 @@ let
                     else (cur_speed + change);
 tel
 
-const min_vals: int^5 = [420, 490, 430, 880, 340]
-const max_vals: int^5 = [800, 860, 820, 950, 690]
 node normalize_value(min_val, max_val, value: int) returns (norm_val: int)
 var safe_val: int;
 let
@@ -101,27 +99,30 @@ let
     norm_val = ((safe_val - min_val)*1000)/(max_val - min_val)
 tel 
 
-node process_raw_Sen_values(ssen0, ssen1, ssen2, ssen3, ssen4: int) returns (line_switched: bool; sen: int^5)
-var  raw_sen, norm_sen, sen_white_line, sen_black_line: int^5; sen0, sen1, sen2, sen3, sen4: int;
-let 
-    raw_sen = [ssen0, ssen1, ssen2, ssen3, ssen4];
-    norm_sen = map<<5>>normalize_value(min_vals, max_vals,raw_sen);
-    sen0 = norm_sen[0]; sen1 = norm_sen[1]; sen2 = norm_sen[2]; sen3 = norm_sen[3]; sen4 = norm_sen[4]; 
-    line_switched = false -> if pre(line_switched) then pre(line_switched) else (sen0>=black_thresh and sen1>=black_thresh and sen3>=black_thresh and sen4>=black_thresh);
-    sen_white_line = [sen0, sen1, sen2, sen3, sen4];
-    sen_black_line = [sensor_max - sen0, sensor_max - sen1, sensor_max - sen2, sensor_max - sen3, sensor_max - sen4];
-    sen = if line_switched then sen_black_line else sen_white_line;
+node updateMins(cur_val, cur_min: int) returns(new_min: int)
+let
+    new_min = if (not(cur_val=0)) and (cur_val<cur_min) then cur_val else cur_min;
+tel
+
+node updateMaxs(cur_val, cur_max: int) returns(new_max: int)
+let
+    new_max = if cur_val > cur_max then cur_val else cur_max;
 tel
 
 (* Main function for line following *)
-node main(sen0, sen1, sen2, sen3, sen4: int) returns ( v_l, v_r, dir: int;)
+node main(sen0, sen1, sen2, sen3, sen4: int) returns ( v_l, v_r, dir: int; min_cals, max_cals: int^5;)
 var sen, raw_sen, norm_sen, sen_white_line, sen_black_line: int^5; sensor_arithmetic_sum, sensor_avg, pid_error: int; all_low, all_high, only_middle_high, only_middle_low: bool;
 (* last : int = 1;  *)
 last line_switched: bool = false;
+last min_vals: int^5 = [420, 490, 430, 880, 340];
+last max_vals: int^5 = [800, 860, 820, 950, 690];
 let
     raw_sen = [sen0, sen1, sen2, sen3, sen4];
-    norm_sen = map<<5>>normalize_value(min_vals,max_vals,raw_sen);
-    (* (line_switched, sen) = process_raw_Sen_values(sen0, sen1, sen2, sen3, sen4); *)
+    min_vals = (last min_vals); --  map<<5>>updateMins(raw_sen, (last min_vals));
+    max_vals = map<<5>>updateMaxs(raw_sen, (last max_vals));
+    min_cals = min_vals;
+    max_cals = max_vals;
+    norm_sen = map<<5>>normalize_value(min_vals, max_vals, raw_sen);
     sen_white_line = [norm_sen[0], norm_sen[1], norm_sen[2], norm_sen[3], norm_sen[4]];
     sen_black_line = [sensor_max - norm_sen[0], sensor_max - norm_sen[1], sensor_max - norm_sen[2], sensor_max - norm_sen[3], sensor_max - norm_sen[4]];
     sen = if (last line_switched) then sen_black_line else sen_white_line;
@@ -138,6 +139,11 @@ let
 
     all_high =  (sensor_arithmetic_sum > (black_thresh*5));
     automaton
+        state Calibrate
+            var ncycles: int;
+            do v_l=base_sraight_speed; v_r=base_sraight_speed; dir=3;
+                ncycles = 0->pre(ncycles) + 1;
+            until ncycles>=500 then Idle
         state Idle
             do v_l=0; v_r=0; dir=0;
             unless all_high then Start
