@@ -3,5 +3,6 @@ test_stuff/
 *.bin
 theory/
 workspace/
-project/src/line_follower*
+project/supervisor/line_follower*
 # submission files
+submissions/

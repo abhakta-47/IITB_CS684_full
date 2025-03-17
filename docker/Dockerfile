@@ -70,6 +70,8 @@ RUN git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git
 # RUN echo "source ~/.zsh/powerlevel10k/powerlevel10k.zsh-theme" >>~/.zshrc
 
 RUN sudo mkdir -p /volume1/ && sudo chown -R user:usergroup /volume1/
+RUN cd /usr/local && curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sudo sh
+RUN arduino-cli core install arduino:avr
 
 COPY home/.zshrc /home/user
 COPY build_run /usr/local/bin

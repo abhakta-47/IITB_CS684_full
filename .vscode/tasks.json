@@ -77,7 +77,7 @@
                 "&&",
                 "${workspaceFolder}/project/integrate.sh",
                 "line_follower",
-                "${workspaceFolder}/project/src"
+                "${workspaceFolder}/project/supervisor"
             ],
             "group": {
                 "kind": "build",
@@ -93,7 +93,13 @@
         },
         {
             "label": "Project: upload monitor",
-            "command": "${command:platformio-ide.uploadAndMonitor}",
+            "command": "${workspaceFolder}/project/arduino_utils.sh",
+            "args": [
+                "supervisor"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/project/"
+            }
         },
         {
             "label": "Project: build upload monitor",

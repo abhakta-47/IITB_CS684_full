@@ -17,7 +17,7 @@
       "extensions": [
         "martinfeaux.heptagon-lang",
         "merciercorentin.lustre",
-        "platformio.platformio-ide"
+        "ms-vscode.cpptools"
       ],
       "settings": {
         "terminal.integrated.shell.linux": "/bin/zsh",
