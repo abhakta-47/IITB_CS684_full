@@ -205,14 +205,33 @@ let
                 automaton
                     state PID
                         do 
-                            (* dir = if sen[1]>=black_thresh or pid_error<0 then 2 else if sen[2]>=black_thresh or pid_error>0 then 3 else 0;
-                            v_l = if dir=0 then base_turn_speed->pre(v_l) else safe_motor_update(base_turn_speed, if pid_error >= 0 then pid_error else -1*pid_error);
-                            v_r = if dir=0 then base_turn_speed->pre(v_r) else safe_motor_update(base_turn_speed, if pid_error >= 0 then pid_error else -1*pid_error); *)
-                            v_l = safe_motor_update(base_turn_speed, if pid_error >= 0 then pid_error else -1*pid_error);
-                            v_r = safe_motor_update(base_turn_speed, if pid_error >= 0 then pid_error else -1*pid_error);
-                            dir = if pid_error = 0 then 1 else if pid_error > 0 then 3 else 2;
+                            automaton
+                                state Straight
+                                    (* var accl_cycles, accl: int; *)
+                                    do
+                                        (* accl_cycles = 0->if pre(accl_cycles) > 10 then 1 else pre(accl_cycles) + 1;
+                                        accl = 0->if accl_cycles>=10 then pre(accl)+1 else pre(accl);
+                                        v_l=base_sraight_speed+accl; v_r=base_sraight_speed+accl; dir=1; *)
+                                        v_l=base_sraight_speed; v_r=base_sraight_speed; dir=1;
+                                    unless abs(pid_error) >= 20 then SharpTurn
+                                        | abs(pid_error) > 0 and abs(pid_error) < 20 then SoftTurn
+                                state SoftTurn
+                                    do
+                                        v_l = safe_motor_update(base_turn_speed, pid_error);
+                                        v_r = safe_motor_update(base_turn_speed, -1*pid_error);
+                                        dir = 1;
+                                    unless pid_error=0 then Straight
+                                        |  abs(pid_error) >= 20 then SharpTurn
+                                state SharpTurn
+                                    do
+                                        v_l = safe_motor_update(0, abs(pid_error));
+                                        v_r = safe_motor_update(0, abs(pid_error));
+                                        dir = if pid_error<0 then 2 else 3;
+                                    unless pid_error=0 then Straight
+                                        | abs(pid_error) > 0 and abs(pid_error) < 20 then SoftTurn
+                            end
                         unless all_low then Recovery
-                            |  sen[0]>=black_thresh or sen[4]>=black_thresh then Intersection
+                            |  all_high then Intersection
                     state Intersection
                         var next_dir: int;
                         do
@@ -224,20 +243,20 @@ let
                                         dir = 1;
                                         next_dir = 0;
                                     until all_low then GoRight
-                                        |  sen[1]>=black_thresh or sen[2]>=black_thresh or sen[3]>=black_thresh then GoLeftPrep
-                                state GoLeftPrep
+                                        | only_middle_high then GoLeft
+                                (* state GoLeftPrep
                                     do
                                         v_l = base_turn_speed;
                                         v_r = base_turn_speed;
                                         dir = 2;
                                         next_dir = 0;
-                                    until all_low then GoLeft
+                                    until all_low then GoLeft *)
                                 state GoLeft
                                     do
                                         v_l = base_turn_speed;
                                         v_r = base_turn_speed;
                                         dir = 2;
-                                        next_dir = if sen[1]>=black_thresh or sen[2]>=black_thresh or sen[3]>=black_thresh then 2 else 0;
+                                        next_dir = if sen[1]>=black_thresh or sen[2]>=black_thresh then 2 else 0;
                                 state GoRight
                                     do
                                         v_l = base_turn_speed;
