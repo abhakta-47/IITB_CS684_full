@@ -112,7 +112,7 @@ tel
 
 (* Main function for line following *)
 node main(sen0, sen1, sen2, sen3, sen4: int) returns ( v_l, v_r, dir: int;)
-var raw_sen, norm_sen, sen_white_line, sen_black_line: int^5; sensor_arithmetic_sum, sensor_avg: int; all_low, all_high, only_middle_high, only_middle_low: bool;
+var raw_sen, norm_sen, sen_white_line, sen_black_line: int^5; sensor_arithmetic_sum, sensor_avg: int; all_low, any_high, all_high, only_middle_high, only_middle_low: bool;
 (* last : int = 1;  *)
 last pid_error: int = 0;
 last line_switched: bool = false;
@@ -135,6 +135,7 @@ let
 
     -- Determine robot movement direction
     all_low =  (sen[0]<=white_thresh and sen[1]<=white_thresh and sen[2]<=white_thresh and sen[3]<=white_thresh and sen[4]<=white_thresh);
+    any_high =  (sen[0]>=black_thresh or sen[1]>=black_thresh or sen[2]>=black_thresh or sen[3]>=black_thresh or sen[4]>=black_thresh);
     only_middle_high =  (sen[0]<=white_thresh and sen[1]<=white_thresh and sen[2]>=black_thresh and sen[3]<=white_thresh and sen[4]<=white_thresh);
     only_middle_low =  (sen[0]>=black_thresh and sen[1]>=black_thresh and sen[2]<=white_thresh and sen[3]>=black_thresh and sen[4]>=black_thresh);
 
@@ -150,25 +151,38 @@ let
             unless all_high then Start
         state Start
             do v_l=base_sraight_speed; v_r=base_sraight_speed; dir=1;
-            until not all_high then Normal
-        state Normal
+            until not all_high then WonB
+        state WonB
             do
                 automaton
-                    state Straight
-                        do
-                            v_l = base_sraight_speed;
-                            v_r = base_sraight_speed;
-                            dir = 1;
-                        unless not (pid_error=0) then Turn
-                            |  all_low then Recovery
-                            |  all_high then Intersection
-                    state Turn
+                    state PID
                         do 
                             v_l = safe_motor_update(base_turn_speed, if pid_error >= 0 then pid_error else -1*pid_error);
                             v_r = safe_motor_update(base_turn_speed, if pid_error >= 0 then pid_error else -1*pid_error);
-                            dir = if pid_error > 0 then 3 else 2;
+                            dir = if pid_error = 0 then 1 else if pid_error > 0 then 3 else 2;
                         unless all_low then Recovery
-                            |  pid_error=0 then Straight
+                    state Recovery
+                        do v_l=base_sraight_speed*3/4; v_r=base_sraight_speed*3/4; dir=4;
+                        until not all_low then PID
+                end
+            until (all_high or only_middle_low) and (not line_switched) then Transition
+        state Transition
+            (* var numcycles: int; *)
+            do
+                (* -- go Straight for some time *)
+                v_l=base_sraight_speed; v_r=base_sraight_speed*2; dir=20;
+                line_switched = true;
+            until not all_low continue BoW
+         state BoW
+            do
+                automaton
+                    state PID
+                        do 
+                            dir = if sen[1]>=black_thresh or pid_error<0 then 2 else if sen[2]>=black_thresh or pid_error>0 then 3 else 0;
+                            v_l = if dir=0 then base_turn_speed->pre(v_l) else safe_motor_update(base_turn_speed, if pid_error >= 0 then pid_error else -1*pid_error);
+                            v_r = if dir=0 then base_turn_speed->pre(v_r) else safe_motor_update(base_turn_speed, if pid_error >= 0 then pid_error else -1*pid_error);
+                        unless all_low then Recovery
+                            |  sen[0]>=black_thresh or sen[4]>=black_thresh then Intersection
                     state Intersection
                         var next_dir: int;
                         do
@@ -180,36 +194,37 @@ let
                                         dir = 1;
                                         next_dir = 0;
                                     until all_low then GoRight
-                                        | only_middle_high then GoLeft
+                                        |  sen[1]>=black_thresh or sen[2]>=black_thresh or sen[3]>=black_thresh then GoLeftPrep
+                                state GoLeftPrep
+                                    do
+                                        v_l = base_turn_speed;
+                                        v_r = base_turn_speed;
+                                        dir = 2;
+                                        next_dir = 0;
+                                    until all_low then GoLeft
                                 state GoLeft
                                     do
                                         v_l = base_turn_speed;
                                         v_r = base_turn_speed;
                                         dir = 2;
-                                        next_dir = if pid_error<0 then 2 else 0;
+                                        next_dir = if sen[1]>=black_thresh or sen[2]>=black_thresh or sen[3]>=black_thresh then 2 else 0;
                                 state GoRight
                                     do
                                         v_l = base_turn_speed;
                                         v_r = base_turn_speed;
                                         dir = 3;
-                                        next_dir = if  only_middle_high then 1 else 0;
+                                        next_dir = if  sen[1]>=black_thresh or sen[2]>=black_thresh or sen[3]>=black_thresh then 1 else 0;
                             end
-                        until next_dir=1 then Straight
-                            | next_dir=2 or next_dir=3 then Turn
+                        until not (next_dir=0) then PID
                     state Recovery
                         do v_l=base_sraight_speed*3/4; v_r=base_sraight_speed*3/4; dir=4;
-                        until pid_error=0 then Straight
-                            |  not (pid_error=0) then Turn
+                        until not all_low then PID
                     state Stop
                         do v_l=0; v_r=0; dir=0;
                 end
-            until (all_high or only_middle_low) and (not line_switched) then Transition
-        state Transition
-            (* var numcycles: int; *)
-            do
-                (* -- go Straight for some time *)
-                v_l=base_sraight_speed; v_r=base_sraight_speed*2; dir=20;
-                line_switched = true;
-            until not all_low continue Normal
+        state ObsAvoid
+            do v_l=0; v_r=0; dir=0;
+        state Parking
+            do v_l=0; v_r=0; dir=0;
     end
 tel
