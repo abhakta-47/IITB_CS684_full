@@ -1,0 +1,14 @@
+
+node line_follower(sen: int^5) returns (v_l, v_r: int)
+let
+	v_l = if (sen[2] >= 1000) then 100 else sen[1]/10;
+	v_r = if (sen[2] >= 1000) then 100 else sen[3]/10;
+tel
+
+node main(sen0, sen1, sen2, sen3, sen4: int) returns (v_l, v_r: int)
+var sen: int^5;
+let
+	 sen = [sen0, sen1, sen2, sen3, sen4];
+     (v_l, v_r) = line_follower(sen);
+tel
+
