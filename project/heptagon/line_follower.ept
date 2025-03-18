@@ -32,7 +32,7 @@ const sensor_weights: int^5 = [-1000, -100, 0, 100, 1000]
 (* Gains should be determined through field trials *)
 (* for float approximation kscale is used effective k* would be k*/kscale *)
 const kscale: int = 1000  -- Using integer division for scaling down
-const kp: int = 50 -- effective kp/kscale
+const kp: int = 80 -- effective kp/kscale
 const kd: int = 5 -- effective kd/kscale
 const ki: int = 0 -- effective ki/kscale
 const max_i: int = 200000000  -- to prevent integral overflow
@@ -162,31 +162,9 @@ let
                 automaton
                     state PID
                         do 
-                            automaton
-                                state Straight
-                                    (* var accl_cycles, accl: int; *)
-                                    do
-                                        (* accl_cycles = 0->if pre(accl_cycles) > 10 then 1 else pre(accl_cycles) + 1;
-                                        accl = 0->if accl_cycles>=10 then pre(accl)+1 else pre(accl);
-                                        v_l=base_sraight_speed+accl; v_r=base_sraight_speed+accl; dir=1; *)
-                                        v_l=base_sraight_speed; v_r=base_sraight_speed; dir=1;
-                                    unless abs(pid_error) >= 20 then SharpTurn
-                                        | abs(pid_error) > 0 and abs(pid_error) < 20 then SoftTurn
-                                state SoftTurn
-                                    do
-                                        v_l = safe_motor_update(base_turn_speed, pid_error);
-                                        v_r = safe_motor_update(base_turn_speed, -1*pid_error);
-                                        dir = 1;
-                                    unless pid_error=0 then Straight
-                                        |  abs(pid_error) >= 20 then SharpTurn
-                                state SharpTurn
-                                    do
-                                        v_l = safe_motor_update(0, abs(pid_error));
-                                        v_r = safe_motor_update(0, abs(pid_error));
-                                        dir = if pid_error<0 then 2 else 3;
-                                    unless pid_error=0 then Straight
-                                        | abs(pid_error) > 0 and abs(pid_error) < 20 then SoftTurn
-                            end
+                            v_l = safe_motor_update(base_turn_speed, pid_error);
+                            v_r = safe_motor_update(base_turn_speed, -1*pid_error);
+                            dir = 1;
                         unless all_low then Recovery
                     state Recovery
                         do v_l=base_sraight_speed*3/4; v_r=base_sraight_speed*3/4; dir=4;
@@ -205,31 +183,9 @@ let
                 automaton
                     state PID
                         do 
-                            automaton
-                                state Straight
-                                    (* var accl_cycles, accl: int; *)
-                                    do
-                                        (* accl_cycles = 0->if pre(accl_cycles) > 10 then 1 else pre(accl_cycles) + 1;
-                                        accl = 0->if accl_cycles>=10 then pre(accl)+1 else pre(accl);
-                                        v_l=base_sraight_speed+accl; v_r=base_sraight_speed+accl; dir=1; *)
-                                        v_l=base_sraight_speed; v_r=base_sraight_speed; dir=1;
-                                    unless abs(pid_error) >= 20 then SharpTurn
-                                        | abs(pid_error) > 0 and abs(pid_error) < 20 then SoftTurn
-                                state SoftTurn
-                                    do
-                                        v_l = safe_motor_update(base_turn_speed, pid_error);
-                                        v_r = safe_motor_update(base_turn_speed, -1*pid_error);
-                                        dir = 1;
-                                    unless pid_error=0 then Straight
-                                        |  abs(pid_error) >= 20 then SharpTurn
-                                state SharpTurn
-                                    do
-                                        v_l = safe_motor_update(0, abs(pid_error));
-                                        v_r = safe_motor_update(0, abs(pid_error));
-                                        dir = if pid_error<0 then 2 else 3;
-                                    unless pid_error=0 then Straight
-                                        | abs(pid_error) > 0 and abs(pid_error) < 20 then SoftTurn
-                            end
+                            v_l = safe_motor_update(base_turn_speed, pid_error);
+                            v_r = safe_motor_update(base_turn_speed, -1*pid_error);
+                            dir = 1;
                         unless all_low then Recovery
                             |  all_high then Intersection
                     state Intersection

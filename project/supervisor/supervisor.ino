@@ -33,7 +33,7 @@ void setup() {
 
     Line_follower__main_reset(&_mem);
     // TODO undo ck =
-    _mem.ck = Line_follower__St_5_Idle;
+    // _mem.ck = Line_follower__St_3_Idle;
 
     Serial.begin(115200);
 }
@@ -52,25 +52,27 @@ void debug_display();
 void loop() {
     AnalogRead(sensorValues);
     Serial.print(sensorValues[0]);
-    // Serial.print(sensorValues[1]);
-    // Serial.print(sensorValues[2]);
-    // Serial.print(sensorValues[3]);
-    // Serial.print(sensorValues[4]);
+    Serial.print(" ");
+    Serial.print(sensorValues[1]);
+    Serial.print(" ");
+    Serial.print(sensorValues[2]);
+    Serial.print(" ");
+    Serial.print(sensorValues[3]);
+    Serial.print(" ");
+    Serial.print(sensorValues[4]);
     Serial.println();
     Line_follower__main_step(sensorValues[0], sensorValues[1], sensorValues[2],
                              sensorValues[3], sensorValues[4], &_res, &_mem);
 
-    debug_display();
     motor_control();
+    debug_display();
 }
 
 void debug_display() {
-    Line_follower__st_5 root_state = _mem.ck;
-    Line_follower__st_4 BW_state = _mem.v_103;
-    Line_follower__st_3 intersection_state = _mem.v_123;
-    Line_follower__st_2 BW_pid_state = _mem.v_149;
-    Line_follower__st_1 WB_state = _mem.v_161;
-    Line_follower__st WB__pid_state = _mem.v_186;
+    Line_follower__st_3 root_state = _mem.ck;
+    Line_follower__st_2 BW_state = _mem.v_103;
+    Line_follower__st_1 intersection_state = _mem.v_123;
+    Line_follower__st WB_state = _mem.v_132;
     long pid_error = _mem.pid_error_2;
 
     display.clearDisplay();
@@ -91,78 +93,52 @@ void debug_display() {
 
     // Print state information
     switch (root_state) {
-    case Line_follower__St_5_Calibrate:
+    case Line_follower__St_3_Calibrate:
         display.print(F("Calibration"));
         break;
-    case Line_follower__St_5_Idle:
+    case Line_follower__St_3_Idle:
         display.print(F("Idle"));
         break;
-    case Line_follower__St_5_Start:
+    case Line_follower__St_3_Start:
         display.print(F("StartLine"));
         break;
-    case Line_follower__St_5_WonB:
+    case Line_follower__St_3_WonB:
         display.print(F("WB "));
         switch (WB_state) {
-        case Line_follower__St_1_PID:
-            display.print(F("PID "));
-            // switch (WB_pid_state) {
-            // case Line_follower__St_Straight:
-            //     display.print(F("Str"));
-            //     break;
-            // case Line_follower__St_SoftTurn:
-            //     display.print(F("Sft"));
-            //     break;
-            // case Line_follower__St_SharpTurn:
-            //     display.print(F("shr"));
-            //     break;
-            // default:
-            //     break;
-            // }
+        case Line_follower__St_PID:
+            display.print(F("PID"));
             break;
-        case Line_follower__St_1_Recovery:
-            display.print(F("Rcvr"));
+        case Line_follower__St_Recovery:
+            display.print(F("Recovery"));
         default:
             break;
         }
         break;
-    case Line_follower__St_5_Transition:
+    case Line_follower__St_3_Transition:
         display.print(F("Transition"));
         break;
-    case Line_follower__St_5_BoW:
+    case Line_follower__St_3_BoW:
         display.print(F("BW "));
         switch (BW_state) {
-        case Line_follower__St_4_PID:
-            display.print(F("PID "));
-            switch (BW_pid_state) {
-            case Line_follower__St_2_Straight:
-                display.print(F("Str"));
-                break;
-            case Line_follower__St_2_SoftTurn:
-                display.print(F("Sft"));
-                break;
-            case Line_follower__St_2_SharpTurn:
-                display.print(F("shr"));
-                break;
-            default:
-                break;
-            }
+        case Line_follower__St_2_PID:
+            display.print(F("PID"));
             break;
-        case Line_follower__St_4_Recovery:
+        case Line_follower__St_2_Recovery:
             display.print(F("Rcvr"));
             break;
-        case Line_follower__St_4_Intersection:
+        case Line_follower__St_2_Intersection:
             display.print(F("Inx "));
             switch (intersection_state) {
-            case Line_follower__St_3_GoStraight:
+            case Line_follower__St_1_GoStraight:
                 display.print(F("Str"));
                 break;
-            case Line_follower__St_3_GoRight:
+            case Line_follower__St_1_GoRight:
                 display.print(F("Rgt"));
                 break;
-            // case Line_follower__St_3_GoLeftPrep:
+            // case Line_follower__St_1_GoLeftPrep:
             //     display.print(F("LftPrep"));
             //     break;
-            case Line_follower__St_3_GoLeft:
+            case Line_follower__St_1_GoLeft:
                 display.print(F("Lft"));
                 break;
             default:
