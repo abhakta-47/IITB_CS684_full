@@ -16,6 +16,9 @@ int sensorValues[NUM_SENSORS];
 #define OLED_RESET 9 // As per schematic (D9)
 Adafruit_SSD1306 display(OLED_RESET, OLED_SA0);
 
+// for IR
+#define Addr 0x20
+
 Line_follower__main_out _res;
 Line_follower__main_mem _mem;
 
@@ -49,19 +52,47 @@ void safePrint(long value) {
 void motor_control();
 void debug_display();
 
-void loop() {
-    AnalogRead(sensorValues);
-    Serial.print(sensorValues[0]);
-    // Serial.print(sensorValues[1]);
-    // Serial.print(sensorValues[2]);
-    // Serial.print(sensorValues[3]);
-    // Serial.print(sensorValues[4]);
-    Serial.println();
-    Line_follower__main_step(sensorValues[0], sensorValues[1], sensorValues[2],
-                             sensorValues[3], sensorValues[4], &_res, &_mem);
+int read_ir();
 
-    debug_display();
-    motor_control();
+void loop() {
+    int ir_val = read_ir();
+    Serial.print("Obstacle State: ");
+    Serial.println(ir_val, BIN); // Print as binary (00, 01, 10, 11)
+
+    // if (obstacleState == 0b00) {
+    //     Serial.println("No Obstacle (00) → Move Forward");
+    //     forward();
+    // } else if (obstacleState == 0b10) {
+    //     Serial.println("Left Obstacle (10) → Turn Right");
+    //     right();
+    // } else if (obstacleState == 0b01) {
+    //     Serial.println("Right Obstacle (01) → Turn Left");
+    //     left();
+    // } else if (obstacleState == 0b11) {
+    //     Serial.println("Front Obstacle (11) → Stop and Turn Right");
+    //     stop();
+    //     delay(500);
+    //     right();
+    // }
+
+    delay(200); // Short delay before next check
+}
+
+int read_ir() {
+    char ir_val = ir_read();
+    switch (ir_val) {
+    case 'l':
+        return 2;
+        break;
+    case 'r':
+        return 1;
+    case 'b':
+        return 3;
+    case 'n':
+        return 0;
+    default:
+        return -1;
+    }
 }
 
 void debug_display() {
