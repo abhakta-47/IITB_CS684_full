@@ -52,7 +52,7 @@ cd $filename"_c/"
 
 gcc -w -c -I $(heptc -where)/c *.c > /dev/null
 # gcc -Wall -c -I $(heptc -where)/c _main.c  
-gcc -w -o $node *.o $(heptc -where)/c/math.o > /dev/null
+# gcc -w -o $node *.o $(heptc -where)/c/math.o > /dev/null
 # echo "${node}"
 # echo "${filename^}"
 if [ ! -z "${compile_only}" ] ; then

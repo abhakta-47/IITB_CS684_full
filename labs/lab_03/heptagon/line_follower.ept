@@ -1,14 +1,165 @@
+(*********************************************************************************
+Inputs:
+    Values from 5 White Line Sensors.
+    Each Sensor value ranges between: 0 to 1023.
+    On white surface, sensor values are low and for black surface, sensor values are high.
+Outputs:
+    3 for controlling the motion of the Robot (1 for Direction and 2 for Motor's velocities).
+    From the final heptagon node, 3 outputs are required: 2 velocity values (of left and right motors) and direction.
+    Directions list:
+        Direction	Representation
+        Stop	        0
+        Forward	        1
+        Left	        2
+        Right	        3
+        Backward	    4
+    Motor velocity ranges between 0 to 100. It should not be negative or greater than 100.
+- Consider a black line on white surface.
+- Use PID controller for line following.
+- You are free to make assumptions regarding
+    readings of white line sensors at different instances,
+    distance covered by robot for different motions in single step etc.
+**********************************************************************************)
 
-node line_follower(sen: int^5) returns (v_l, v_r: int)
+(**********************************
+CONFIGURATION CONSTANTS START
+***********************************)
+(* Sensor related *)
+const sensor_min: int = 0
+const sensor_max: int = 1023
+const sensor_weights: int^5 = [-70, -30, 0, 30, 70]
+(* PID gains and ranges *)
+(* Gains should be determined through field trials *)
+(* for float approximation kscale is used effective k* would be k*/kscale *)
+const kscale: int = 100  -- Using integer division for scaling down
+const kp: int = 100 -- effective kp/kscale
+const kd: int = 65 -- effective kd/kscale
+const ki: int = 0 -- effective ki/kscale
+const max_i: int = 200000000  -- to prevent integral overflow
+(* accelaration param *)
+const acc_thresh: int = 10
+const base_speed: int = 35
+(********************************
+CONFIGURATION CONSTANTS END
+*********************************)
+
+(* PID error computation *)
+node calPidError(value: int) returns (pid_error: int)
+var p, i, d: int;
 let
-	v_l = if (sen[2] >= 1000) then 100 else sen[1]/10;
-	v_r = if (sen[2] >= 1000) then 100 else sen[3]/10;
+     p = value;
+     (* Integral term with overflow prevention *)
+     i = if ((0->pre(i) + value) <= max_i) then (0->pre(i) + value) else max_i;
+     d = value - 0->pre(value);
+     pid_error = (kp*p + ki*i + kd*d) / kscale;
 tel
 
-node main(sen0, sen1, sen2, sen3, sen4: int) returns (v_l, v_r: int)
-var sen: int^5;
+(* Computes weighted sum of sensor values *)
+node weightedSum(sen_value, sen_weight, prev_sum: int) returns (weighted_sum: int)
 let
-	 sen = [sen0, sen1, sen2, sen3, sen4];
-     (v_l, v_r) = line_follower(sen);
+    weighted_sum = prev_sum + sen_value * sen_weight;
 tel
 
+(* Computes weighted avg of sensor values *)
+node senWeightedAvg(sen: int^5) returns (sensor_avg: int)
+var aritmetic_sum: int;
+let
+    aritmetic_sum = fold<<5>>(+)(sen, 0) - sen[2];
+    sensor_avg = if aritmetic_sum = 0 then 0 else fold<<5>>weightedSum(sen, sensor_weights, 0) / aritmetic_sum;
+tel
+
+(*  esure motor speed stays in range [0,100] *)
+const white_thresh: int = 300 -- sensor value less than white_thresh guarantees white
+const black_thresh: int = 900 -- sensor value more than black_thresh guarantees black
+node safe_motor_update(cur_speed, change: int) returns (new_speed: int)
+let
+    new_speed =     if (cur_speed + change) > 100 then 100
+                    else if (cur_speed + change) < 0 then 0
+                    else (cur_speed + change);
+tel
+
+node normalize_value(min_val, max_val, value: int) returns (norm_val: int)
+var safe_val: int;
+let
+    safe_val = if value >= max_val then max_val else if value <= min_val then min_val else value;
+    norm_val = ((safe_val - min_val)*1000)/(max_val - min_val)
+tel 
+
+node updateMins(cur_val, cur_min: int) returns(new_min: int)
+let
+    new_min = if (not(cur_val=0)) and (cur_val<cur_min) then cur_val else cur_min;
+tel
+
+node updateMaxs(cur_val, cur_max: int) returns(new_max: int)
+let
+    new_max = if cur_val > cur_max then cur_val else cur_max;
+tel
+
+node abs(input: int) returns(out: int)
+let
+    out = if input>=0 then input else -1*input;
+tel
+
+
+(* Main function for line following *)
+node main(sen0, sen1, sen2, sen3, sen4: int) returns ( v_l, v_r, dir: int;)
+var raw_sen, norm_sen: int^5; sensor_arithmetic_sum, sensor_avg: int; all_low, any_high, all_high, only_middle_high, only_middle_low: bool;
+(* last : int = 1;  *)
+last calibrated: bool = false;
+last pid_error: int = 0;
+last min_vals: int^5 = [10000, 10000, 10000, 800, 10000];
+last max_vals: int^5 = [0, 0, 0, 0, 0];
+last sen: int^5 = [0, 0, 0, 0, 0];
+let
+    raw_sen = [sen0, sen1, sen2, sen3, sen4];
+    min_vals = if (last calibrated) then (last min_vals) else map<<5>>updateMins(raw_sen, (last min_vals));
+    max_vals = if (last calibrated) then (last max_vals) else map<<5>>updateMaxs(raw_sen, (last max_vals));
+    norm_sen = map<<5>>normalize_value(min_vals, max_vals, raw_sen);
+    sen = [norm_sen[0], norm_sen[1], norm_sen[2], norm_sen[3], norm_sen[4]];
+    (* processed_sen = sen; *)
+    -- Compute error and PID error
+    sensor_arithmetic_sum = fold<<5>>(+)(sen, 0);
+    sensor_avg = senWeightedAvg(sen);
+    pid_error = calPidError(sensor_avg);
+
+    -- Determine robot movement direction
+    all_low =  (sen[0]<=white_thresh and sen[1]<=white_thresh and sen[2]<=white_thresh and sen[3]<=white_thresh and sen[4]<=white_thresh);
+    any_high =  (sen[0]>=black_thresh or sen[1]>=black_thresh or sen[2]>=black_thresh or sen[3]>=black_thresh or sen[4]>=black_thresh);
+    only_middle_high =  (sen[0]<=white_thresh and sen[1]<=white_thresh and sen[2]>=black_thresh and sen[3]<=white_thresh and sen[4]<=white_thresh);
+    only_middle_low =  (sen[0]>=black_thresh and sen[1]>=black_thresh and sen[2]<=white_thresh and sen[3]>=black_thresh and sen[4]>=black_thresh);
+    all_high =  (sen[0]>=black_thresh and sen[1]>=black_thresh and sen[2]>=black_thresh and sen[3]>=black_thresh and sen[4]>=black_thresh);
+    automaton
+        state Calibrate
+            var ncycles: int;
+            do v_l=60; v_r=60; dir=3;
+                ncycles = 0->pre(ncycles) + 1;
+            until ncycles>=100 and (all_high or (ncycles>=150) ) then Idle
+        state Idle
+            do 
+            calibrated = true;
+            v_l=0; v_r=0; dir=0;
+            unless all_high then Start
+        state Start
+            do 
+            calibrated = true;
+            v_l=base_speed; v_r=base_speed; dir=1;
+            until not all_high then WonB
+        state WonB
+            do
+                calibrated = true;
+                automaton
+                    state PID
+                        do 
+                            v_l = safe_motor_update(base_speed, pid_error);
+                            v_r = safe_motor_update(base_speed, -1*pid_error);
+                            dir = 1;
+                        unless all_low then Recovery
+                    state Recovery
+                        do 
+                            v_l = base_speed; 
+                            v_r = base_speed; 
+                            dir = 4;
+                        until not all_low then PID
+                end
+    end
+tel
