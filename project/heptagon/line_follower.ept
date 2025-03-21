@@ -26,7 +26,7 @@ CONFIGURATION CONSTANTS START
 ***********************************)
 (* Sensor related *)
 const sensor_min: int = 0
-const sensor_max: int = 1023
+const sensor_max: int = 1000
 const sensor_weights: int^5 = [-1000, -100, 0, 100, 1000]
 (* PID gains and ranges *)
 (* Gains should be determined through field trials *)
@@ -38,8 +38,7 @@ const ki: int = 0 -- effective ki/kscale
 const max_i: int = 200000000  -- to prevent integral overflow
 (* accelaration param *)
 const acc_thresh: int = 10
-const base_sraight_speed: int = 40 -- 50
-const base_turn_speed: int = 40 -- 40
+const base_speed: int = 30
 (********************************
 CONFIGURATION CONSTANTS END
 *********************************)
@@ -69,22 +68,9 @@ let
     sensor_avg = if aritmetic_sum = 0 then 0 else fold<<5>>weightedSum(sen, sensor_weights, 0) / aritmetic_sum;
 tel
 
-(* node count_white(val, prev: int) returns (new: int)
-let
-    new = if val < 200 then prev+1 else prev;
-tel
-node white_or_black_map(sen0, sen1, sen2, sen3, sen4: int) returns (mapped_sen: int^5)
-let
-    raw_sen = [sen0, sen1, sen2, sen3, sen4];
-    compliment_sen = [sensor_max - sen[0], sensor_max - sen[1], sensor_max - sen[2], sensor_max - sen[3], sensor_max - sen[4]];
-    white_count = fold<<5>>(count_white)(raw_sen, 0);
-    black_count = 5 - white_count;
-    mapped_sen = if white_count >= black_count then raw_sen else compliment_sen;
-tel *)
-
 (*  esure motor speed stays in range [0,100] *)
-const white_thresh: int = 300 -- sensor value less than white_thresh guarantees white
-const black_thresh: int = 800 -- sensor value more than black_thresh guarantees black
+(* const white_thresh: int = 250 -- sensor value less than white_thresh guarantees white *)
+const black_thresh: int = 500 -- sensor value more than black_thresh guarantees black
 node safe_motor_update(cur_speed, change: int) returns (new_speed: int)
 let
     new_speed =     if (cur_speed + change) > 100 then 100
@@ -116,18 +102,19 @@ tel
 
 
 (* Main function for line following *)
-node main(sen0, sen1, sen2, sen3, sen4: int) returns ( v_l, v_r, dir: int;)
+node main(sen0, sen1, sen2, sen3, sen4, ir_value: int) returns ( v_l, v_r, dir: int;)
 var raw_sen, norm_sen, sen_white_line, sen_black_line: int^5; sensor_arithmetic_sum, sensor_avg: int; all_low, any_high, all_high, only_middle_high, only_middle_low: bool;
 (* last : int = 1;  *)
+last calibrated: bool = false;
 last pid_error: int = 0;
 last line_switched: bool = false;
-last min_vals: int^5 = [420, 490, 430, 880, 340];
-last max_vals: int^5 = [800, 860, 820, 950, 690];
+last min_vals: int^5 = [10000, 10000, 10000, 1000, 10000];
+last max_vals: int^5 = [0, 0, 0, 0, 0];
 last sen: int^5 = [0, 0, 0, 0, 0];
 let
     raw_sen = [sen0, sen1, sen2, sen3, sen4];
-    min_vals = (last min_vals); --  map<<5>>updateMins(raw_sen, (last min_vals));
-    max_vals = map<<5>>updateMaxs(raw_sen, (last max_vals));
+    min_vals = if (last calibrated) then (last min_vals) else map<<5>>updateMins(raw_sen, (last min_vals));
+    max_vals = if (last calibrated) then (last max_vals) else map<<5>>updateMaxs(raw_sen, (last max_vals));
     norm_sen = map<<5>>normalize_value(min_vals, max_vals, raw_sen);
     sen_white_line = [norm_sen[0], norm_sen[1], norm_sen[2], norm_sen[3], norm_sen[4]];
     sen_black_line = [sensor_max - norm_sen[0], sensor_max - norm_sen[1], sensor_max - norm_sen[2], sensor_max - norm_sen[3], sensor_max - norm_sen[4]];
@@ -139,52 +126,62 @@ let
     pid_error = calPidError(sensor_avg);
 
     -- Determine robot movement direction
-    all_low =  (sen[0]<=white_thresh and sen[1]<=white_thresh and sen[2]<=white_thresh and sen[3]<=white_thresh and sen[4]<=white_thresh);
+    all_low =  (sen[0]<=black_thresh and sen[1]<=black_thresh and sen[2]<=black_thresh and sen[3]<=black_thresh and sen[4]<=black_thresh);
     any_high =  (sen[0]>=black_thresh or sen[1]>=black_thresh or sen[2]>=black_thresh or sen[3]>=black_thresh or sen[4]>=black_thresh);
-    only_middle_high =  (sen[0]<=white_thresh and sen[1]<=white_thresh and sen[2]>=black_thresh and sen[3]<=white_thresh and sen[4]<=white_thresh);
-    only_middle_low =  (sen[0]>=black_thresh and sen[1]>=black_thresh and sen[2]<=white_thresh and sen[3]>=black_thresh and sen[4]>=black_thresh);
-
-    all_high =  (sensor_arithmetic_sum > (black_thresh*5));
+    only_middle_high =  (sen[0]<=black_thresh and sen[1]<=black_thresh and sen[2]>=black_thresh and sen[3]<=black_thresh and sen[4]<=black_thresh);
+    only_middle_low =  (sen[0]>=black_thresh and sen[1]>=black_thresh and sen[2]<=black_thresh and sen[3]>=black_thresh and sen[4]>=black_thresh);
+    all_high =  (sen[0]>=black_thresh and sen[1]>=black_thresh and sen[2]>=black_thresh and sen[3]>=black_thresh and sen[4]>=black_thresh);
+    
     automaton
         state Calibrate
             var ncycles: int;
-            do v_l=base_sraight_speed; v_r=base_sraight_speed; dir=3;
+            do v_l=40; v_r=40; dir=3;
                 ncycles = 0->pre(ncycles) + 1;
-            until ncycles>=50 and all_high then Idle
+            (* until ncycles>=150 and (all_high or (ncycles>=200) ) then Idle *)
         state Idle
-            do v_l=0; v_r=0; dir=0;
+            do 
+            calibrated = true;
+            v_l=0; v_r=0; dir=0;
             unless all_high then Start
         state Start
-            do v_l=base_sraight_speed; v_r=base_sraight_speed; dir=1;
+            do 
+            calibrated = true;
+            v_l=base_speed; v_r=base_speed; dir=1;
             until not all_high then WonB
         state WonB
             do
+                calibrated = true;
                 automaton
                     state PID
                         do 
-                            v_l = safe_motor_update(base_turn_speed, pid_error);
-                            v_r = safe_motor_update(base_turn_speed, -1*pid_error);
+                            v_l = safe_motor_update(base_speed, pid_error);
+                            v_r = safe_motor_update(base_speed, -1*pid_error);
                             dir = 1;
                         unless all_low then Recovery
                     state Recovery
-                        do v_l=base_sraight_speed*3/4; v_r=base_sraight_speed*3/4; dir=4;
+                        do 
+                            v_l = base_speed; 
+                            v_r = base_speed; 
+                            dir = 4;
                         until not all_low then PID
                 end
-            until (all_high or only_middle_low) and (not line_switched) then Transition
+            until (all_high or only_middle_low) and (not line_switched) then TransitionPrep
+        state TransitionPrep
+            do line_switched=true; v_l=base_speed; v_r=base_speed; dir=1;
+            until true then Transition
         state Transition
             (* var numcycles: int; *)
             do
                 (* -- go Straight for some time *)
-                v_l=base_sraight_speed; v_r=base_sraight_speed*2; dir=20;
-                line_switched = true;
-            until not all_low continue BoW
+                v_l=base_speed; v_r=base_speed*2; dir=20;
+            unless not all_low then BoW
          state BoW
             do
                 automaton
                     state PID
                         do 
-                            v_l = safe_motor_update(base_turn_speed, pid_error);
-                            v_r = safe_motor_update(base_turn_speed, -1*pid_error);
+                            v_l = safe_motor_update(base_speed, pid_error);
+                            v_r = safe_motor_update(base_speed, -1*pid_error);
                             dir = 1;
                         unless all_low then Recovery
                             |  all_high then Intersection
@@ -194,41 +191,60 @@ let
                             automaton
                                 state GoStraight
                                     do
-                                        v_l = base_turn_speed;
-                                        v_r = base_turn_speed;
+                                        v_l = base_speed;
+                                        v_r = base_speed;
                                         dir = 1;
                                         next_dir = 0;
                                     until all_low then GoRight
                                         | only_middle_high then GoLeft
                                 (* state GoLeftPrep
                                     do
-                                        v_l = base_turn_speed;
-                                        v_r = base_turn_speed;
+                                        v_l = base_speed;
+                                        v_r = base_speed;
                                         dir = 2;
                                         next_dir = 0;
                                     until all_low then GoLeft *)
                                 state GoLeft
                                     do
-                                        v_l = base_turn_speed;
-                                        v_r = base_turn_speed;
+                                        v_l = base_speed;
+                                        v_r = base_speed;
                                         dir = 2;
                                         next_dir = if sen[1]>=black_thresh or sen[2]>=black_thresh then 2 else 0;
                                 state GoRight
                                     do
-                                        v_l = base_turn_speed;
-                                        v_r = base_turn_speed;
+                                        v_l = base_speed;
+                                        v_r = base_speed;
                                         dir = 3;
                                         next_dir = if  sen[1]>=black_thresh or sen[2]>=black_thresh or sen[3]>=black_thresh then 1 else 0;
                             end
                         until not (next_dir=0) then PID
                     state Recovery
-                        do v_l=base_sraight_speed*3/4; v_r=base_sraight_speed*3/4; dir=4;
+                        do 
+                            v_l = base_speed; 
+                            v_r = base_speed; 
+                            dir = 4;
                         until not all_low then PID
                     state Stop
                         do v_l=0; v_r=0; dir=0;
                 end
+            unless ir_value>0 then ObsAvoid
         state ObsAvoid
-            do v_l=0; v_r=0; dir=0;
+            do 
+                automaton
+                    state Right
+                        do
+                            v_l = 40;
+                            v_r = 20;
+                            dir = 1;
+                        until true then Left
+                    state Left
+                        do
+                            v_l = 20;
+                            v_r = 40;
+                            dir = 1;
+                        until ir_value>0 then Right
+                end 
+            until any_high then BoW
         state Parking
             do v_l=0; v_r=0; dir=0;
     end
