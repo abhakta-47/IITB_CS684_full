@@ -31,27 +31,28 @@ const sensor_weights: int^5 = [-5, -2, 0, 2, 5]
 (* PID gains and ranges *)
 (* Gains should be determined through field trials *)
 (* for float approximation kscale is used effective k* would be k*/kscale *)
-const kscale: int = 10000  -- Using integer division for scaling down
+const kscale_white: int = 10000  -- Using integer division for scaling down
+const kscale_black: int = 10000  -- Using integer division for scaling down
 const kp: int = 100 -- effective kp/kscale
 const kd: int = 1 -- effective kd/kscale
 const ki: int = 0 -- effective ki/kscale
 const max_i: int = 200000000  -- to prevent integral overflow
 (* accelaration param *)
 const acc_thresh: int = 10
-const base_speed: int = 50
+const base_speed: int = 30
 (********************************
 CONFIGURATION CONSTANTS END
 *********************************)
 
 (* PID error computation *)
-node calPidError(value: int) returns (pid_error: int)
+node calPidError(value, scale_down: int) returns (pid_error: int)
 var p, i, d: int;
 let
      p = value;
      (* Integral term with overflow prevention *)
      i = if ((0->pre(i) + value) <= max_i) then (0->pre(i) + value) else max_i;
      d = value - 0->pre(value);
-     pid_error = (kp*p + ki*i + kd*d) / kscale;
+     pid_error = (kp*p + ki*i + kd*d) / scale_down;
 tel
 
 (* Computes weighted sum of sensor values *)
@@ -119,12 +120,12 @@ let
     norm_sen = map<<5>>normalize_value(min_vals, max_vals, raw_sen);
     sen_white_line = [norm_sen[0], norm_sen[1], norm_sen[2], norm_sen[3], norm_sen[4]];
     sen_black_line = [sensor_max - norm_sen[0], sensor_max - norm_sen[1], sensor_max - norm_sen[2], sensor_max - norm_sen[3], sensor_max - norm_sen[4]];
-    sen = if (last line_switched) then sen_black_line else sen_white_line;
+    sen = norm_sen;
     (* processed_sen = sen; *)
     -- Compute error and PID error
     sensor_arithmetic_sum = fold<<5>>(+)(sen, 0);
     sensor_avg = senWeightedAvg(sen);
-    pid_error = calPidError(sensor_avg);
+    pid_error = if (last line_switched) then calPidError(sensor_avg, kscale_black) else calPidError(sensor_avg, kscale_white);
 
     -- Determine robot movement direction
     all_low =  (sen[0]<=black_thresh and sen[1]<=black_thresh and sen[2]<=black_thresh and sen[3]<=black_thresh and sen[4]<=black_thresh);
@@ -148,111 +149,51 @@ let
             do 
             calibrated = true;
             v_l=base_speed; v_r=base_speed; dir=1;
-            until not all_high then WonB
-        state WonB
-            do
-                calibrated = true;
-                automaton
-                    state PID
-                        var sharp_thresh: int;
-                        do 
-                            sharp_thresh = 30;
-                            v_l = if abs(pid_error) <= sharp_thresh then safe_motor_update(base_speed, pid_error/2) else safe_motor_update(0, abs(pid_error)+20);
-                            v_r = if abs(pid_error) <= sharp_thresh then safe_motor_update(base_speed, -1*pid_error/2) else safe_motor_update(0, abs(pid_error)+20);
-                            dir = if abs(pid_error) <= sharp_thresh then 1 else if pid_error > 0 then 3 else 2;
-                            last_error = if pid_error=0 then (last last_error) else if pid_error>0 then 1 else -1;
-                        unless all_low then Recovery
-                    state Recovery
-                        do 
-                            v_l = base_speed+20;
-                            v_r = base_speed+20;
-                            dir = if last_error=0 then 4 else if last_error > 0 then 3 else 2;
-                        until not all_low then PID
-                end
-            (* until (all_high or only_middle_low) and (not line_switched) then TransitionPrep *)
-        state TransitionPrep
-            do line_switched=true; v_l=base_speed; v_r=base_speed; dir=1;
-            until true then Transition
-        state Transition
-            (* var numcycles: int; *)
-            do
-                (* -- go Straight for some time *)
-                v_l=base_speed; v_r=base_speed*2; dir=20;
-            unless not all_low then BoW
+            until not all_high then BoW
          state BoW
             do
+                line_switched = true;
                 automaton
                     state PID
                         var sharp_thresh: int;
                         do 
                             sharp_thresh = 30;
-                            v_l = if abs(pid_error) <= sharp_thresh then safe_motor_update(base_speed, pid_error/2) else safe_motor_update(0, abs(pid_error)+20);
-                            v_r = if abs(pid_error) <= sharp_thresh then safe_motor_update(base_speed, -1*pid_error/2) else safe_motor_update(0, abs(pid_error)+20);
+                            v_r = if abs(pid_error) <= sharp_thresh then safe_motor_update(base_speed, pid_error/2) else safe_motor_update(0, abs(pid_error)+20);
+                            v_l = if abs(pid_error) <= sharp_thresh then safe_motor_update(base_speed, -1*pid_error/2) else safe_motor_update(0, abs(pid_error)+20);
                             dir = if abs(pid_error) <= sharp_thresh then 1 else if pid_error > 0 then 3 else 2;
                             last_error = if pid_error=0 then (last last_error) else if pid_error>0 then 1 else -1;
-                        unless all_low then Recovery
-                            |  all_high then Intersection
+                        unless all_low continue Intersection
+                        (* unless all_high then Recovery *)
+                            (* |  all_high then Intersection *)
                     state Intersection
-                        var next_dir: int;
+                        var counter: int;
                         do
-                            automaton
-                                state GoStraight
+                            automaton 
+                                state Rotate
+                                    do
+                                        dir = 1;
+                                        v_l = if (counter=1) or (counter=2) then 50 else 40;
+                                        v_r = if (counter=1) or (counter=2) then 40 else 50;
+                                        counter = 0->pre(counter) + 1;
+                                    until true then LeaveInx
+                                state LeaveInx
                                     do
                                         v_l = base_speed;
                                         v_r = base_speed;
                                         dir = 1;
-                                        next_dir = 0;
-                                    until all_low then GoRight
-                                        | only_middle_high then GoLeft
-                                (* state GoLeftPrep
-                                    do
-                                        v_l = base_speed;
-                                        v_r = base_speed;
-                                        dir = 2;
-                                        next_dir = 0;
-                                    until all_low then GoLeft *)
-                                state GoLeft
-                                    do
-                                        v_l = base_speed;
-                                        v_r = base_speed;
-                                        dir = 2;
-                                        next_dir = if sen[1]>=black_thresh or sen[2]>=black_thresh then 2 else 0;
-                                state GoRight
-                                    do
-                                        v_l = base_speed;
-                                        v_r = base_speed;
-                                        dir = 3;
-                                        next_dir = if  sen[1]>=black_thresh or sen[2]>=black_thresh or sen[3]>=black_thresh then 1 else 0;
+                                        counter = 0 -> pre(counter);
                             end
-                        until not (next_dir=0) then PID
-                    state Recovery
+                        until not all_low then PID
+
+
+                    (* state Recovery
                         do 
                             v_l = base_speed+20;
                             v_r = base_speed+20;
-                            dir = if last_error=0 then 4 else if last_error > 0 then 3 else 2;
-                        until not all_low then PID
+                            dir = if last_error=0 then 4 else if last_error < 0 then 3 else 2;
+                        until not all_high then PID *)
                     state Stop
                         do v_l=0; v_r=0; dir=0;
                 end
-            unless ir_value>0 then ObsAvoid
-        state ObsAvoid
-            do 
-                automaton
-                    state Right
-                        do
-                            v_l = 40;
-                            v_r = 20;
-                            dir = 1;
-                        until true then Left
-                    state Left
-                        do
-                            v_l = 20;
-                            v_r = 40;
-                            dir = 1;
-                        until ir_value>0 then Right
-                end 
-            until any_high then BoW
-        state Parking
-            do v_l=0; v_r=0; dir=0;
     end
 tel

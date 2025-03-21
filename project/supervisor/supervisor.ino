@@ -1,7 +1,7 @@
 #include <Wire.h>
 
 // Options
-// #define DEBUG
+#define DEBUG
 // #define DEBUG_DETAILED
 #define CALIBRATE
 #define RUNMOTOR
@@ -69,7 +69,7 @@ void setup() {
     display.display();
 #endif
 
-    _mem.ck = Line_follower__St_4_Idle;
+    _mem.ck = Line_follower__St_2_Idle;
     Serial.flush();
 }
 
@@ -105,7 +105,7 @@ void loop() {
 }
 
 void debug_serial() {
-    long pid_error = _mem.pid_error_2;
+    long pid_error = _mem.pid_error_3;
 
     // Print sensor values compactly
     Serial.print(F("Cal: "));
@@ -138,7 +138,7 @@ void debug_display() {
     Line_follower__st_1 intersection_state = _mem.v_143;
     Line_follower__st WB_state = _mem.v_151;
 #endif
-    long pid_error = _mem.pid_error_2;
+    long pid_error = _mem.pid_error_3;
 
     display.clearDisplay();
     display.setCursor(0, 0);
