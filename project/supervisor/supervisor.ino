@@ -1,9 +1,10 @@
 #include <Wire.h>
 
 // Options
-#define DEBUG
-#define DEBUG_DETAILED
+// #define DEBUG
+// #define DEBUG_DETAILED
 #define CALIBRATE
+#define RUNMOTOR
 
 #ifdef DEBUG
 #include <Adafruit_GFX.h>
@@ -39,26 +40,28 @@ void setup() {
 #ifdef DEBUG
     display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // Use the correct I2C address
     display.clearDisplay();
-    display.setTextSize(1);
+    display.setTextSize(2);
     display.setTextColor(WHITE);
-    display.setCursor(0, 10);
-    display.println(F("Hello, AlphaBot2!"));
-    display.println(F("calibration started...."));
+    display.setCursor(0, 0);
+    display.println(F("calibrating...."));
     display.display();
 #endif
 
 #ifdef CALIBRATE
-    Serial.println("Calibration started...");
+    Serial.println(F("Calibration started..."));
     Line_follower__main_reset(&_mem);
     unsigned long startTime = millis();
-    while (millis() - startTime < 20 * 1000) {
+    while (millis() - startTime < 10 * 1000) {
         AnalogRead(sensorValues);
         Line_follower__main_step(sensorValues[0], sensorValues[1],
                                  sensorValues[2], sensorValues[3],
                                  sensorValues[4], 0, &_res, &_mem);
+
         motor_control();
+        delay(500);
+        stop();
     }
-    Serial.println("Calibration finished!");
+    Serial.println(F("Calibration finished!"));
 #endif
 
 #ifdef DEBUG
@@ -71,6 +74,7 @@ void setup() {
 }
 
 void loop() {
+    // stop();
     AnalogRead(sensorValues);
     int ir_val = read_ir();
     Serial.println();
@@ -88,20 +92,23 @@ void loop() {
     Line_follower__main_step(sensorValues[0], sensorValues[1], sensorValues[2],
                              sensorValues[3], sensorValues[4], ir_val, &_res,
                              &_mem);
-
+#ifdef RUNMOTOR
     motor_control();
+#endif
+
 #ifdef DEBUG
     debug_display();
 #else
     debug_serial();
 #endif
+    // delay(10);
 }
 
 void debug_serial() {
     long pid_error = _mem.pid_error_2;
 
     // Print sensor values compactly
-    Serial.print("Cal: ");
+    Serial.print(F("Cal: "));
     for (int i = 0; i < NUM_SENSORS; i++) {
         Serial.print(_mem.sen_2[i]);
         if (i != NUM_SENSORS - 1)
@@ -124,26 +131,43 @@ void debug_serial() {
 
 #ifdef DEBUG
 void debug_display() {
+#ifdef DEBUG_DETAILED
     Line_follower__st_4 root_state = _mem.ck;
     Line_follower__st_3 obs_state = _mem.v_119;
     Line_follower__st_2 BW_state = _mem.v_123;
     Line_follower__st_1 intersection_state = _mem.v_143;
     Line_follower__st WB_state = _mem.v_151;
+#endif
     long pid_error = _mem.pid_error_2;
 
     display.clearDisplay();
-    display.setTextSize(1);
-    display.setTextColor(BLACK, WHITE);
     display.setCursor(0, 0);
+    display.setTextSize(2);
+#ifdef DEBUG_DETAILED
+    display.setTextColor(BLACK, WHITE);
+#endif
+    // for (int i = 0; i < NUM_SENSORS; i++) {
+    //     if (sensorValues[i] >= 1000)
+    //         display.print(F("*"));
+    //     else
+    //         display.print(sensorValues[i]);
+    //     if (i != NUM_SENSORS - 1)
+    //         display.print(F("."));
+    // }
+    // display.println();
 
     // Print sensor values compactly
     for (int i = 0; i < NUM_SENSORS; i++) {
-        display.print(_mem.sen_2[i]);
+        if (_mem.sen_2[i] >= 1000)
+            display.print(F("*"));
+        else
+            display.print(_mem.sen_2[i]);
         if (i != NUM_SENSORS - 1)
             display.print(F("."));
     }
     display.println();
 
+#ifdef DEBUG_DETAILED
     display.setTextColor(WHITE);
     display.setTextSize(2);
 
@@ -159,7 +183,6 @@ void debug_display() {
         break;
     case Line_follower__St_4_WonB:
         display.print(F("WB "));
-#ifdef DEBUG_DETAILED
 
         switch (WB_state) {
         case Line_follower__St_PID:
@@ -170,14 +193,12 @@ void debug_display() {
         default:
             break;
         }
-#endif
         break;
     case Line_follower__St_4_Transition:
         display.print(F("Transition"));
         break;
     case Line_follower__St_4_BoW:
         display.print(F("BW "));
-#ifdef DEBUG_DETAILED
         switch (BW_state) {
         case Line_follower__St_2_PID:
             display.print(F("PID"));
@@ -207,15 +228,19 @@ void debug_display() {
         default:
             display.print(BW_state);
         }
-#endif
         break;
     default:
         display.print(root_state);
     }
+#endif
 
     display.println();
+#ifdef DEBUG_DETAILED
     display.setTextSize(1);
     display.setTextColor(BLACK, WHITE);
+#else
+    display.setTextSize(2);
+#endif
     display.print(pid_error);
     display.print(F(" "));
     display.print(_res.dir);
@@ -260,12 +285,18 @@ void motor_control() {
     case 20:
         forward_left();
         break;
+    case 25:
+        sharp_left();
+        break;
     case 3:
         right();
         // delay(3);
         break;
     case 30:
         forward_right();
+        break;
+    case 35:
+        sharp_right();
         break;
     case 4:
         backward();

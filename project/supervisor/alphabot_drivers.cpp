@@ -73,6 +73,10 @@ void forward_right() { motion(HIGH, LOW, LOW, LOW); }
 
 void forward_left() { motion(LOW, LOW, HIGH, LOW); }
 
+void sharp_right() { motion(HIGH, LOW, HIGH, HIGH); }
+
+void sharp_left() { motion(HIGH, HIGH, HIGH, LOW); }
+
 void back_right() { motion(LOW, LOW, LOW, HIGH); }
 
 void back_left() { motion(LOW, HIGH, LOW, LOW); }

@@ -34,6 +34,8 @@ void right();         // +-
 void left();          // -+
 void forward_right(); // +0
 void forward_left();  // 0+
+void sharp_right();   // +*
+void sharp_left();    // *+
 void back_right();    // 0-
 void back_left();     // -0
 void stop();          // 00

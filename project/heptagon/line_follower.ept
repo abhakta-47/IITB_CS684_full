@@ -27,18 +27,18 @@ CONFIGURATION CONSTANTS START
 (* Sensor related *)
 const sensor_min: int = 0
 const sensor_max: int = 1000
-const sensor_weights: int^5 = [-1000, -100, 0, 100, 1000]
+const sensor_weights: int^5 = [-5, -2, 0, 2, 5]
 (* PID gains and ranges *)
 (* Gains should be determined through field trials *)
 (* for float approximation kscale is used effective k* would be k*/kscale *)
-const kscale: int = 1000  -- Using integer division for scaling down
-const kp: int = 80 -- effective kp/kscale
-const kd: int = 5 -- effective kd/kscale
+const kscale: int = 10000  -- Using integer division for scaling down
+const kp: int = 100 -- effective kp/kscale
+const kd: int = 1 -- effective kd/kscale
 const ki: int = 0 -- effective ki/kscale
 const max_i: int = 200000000  -- to prevent integral overflow
 (* accelaration param *)
 const acc_thresh: int = 10
-const base_speed: int = 30
+const base_speed: int = 50
 (********************************
 CONFIGURATION CONSTANTS END
 *********************************)
@@ -65,7 +65,7 @@ node senWeightedAvg(sen: int^5) returns (sensor_avg: int)
 var aritmetic_sum: int;
 let
     aritmetic_sum = fold<<5>>(+)(sen, 0) - sen[2];
-    sensor_avg = if aritmetic_sum = 0 then 0 else fold<<5>>weightedSum(sen, sensor_weights, 0) / aritmetic_sum;
+    sensor_avg = if aritmetic_sum = 0 then 0 else fold<<5>>weightedSum(sen, sensor_weights, 0);
 tel
 
 (*  esure motor speed stays in range [0,100] *)
@@ -107,6 +107,7 @@ var raw_sen, norm_sen, sen_white_line, sen_black_line: int^5; sensor_arithmetic_
 (* last : int = 1;  *)
 last calibrated: bool = false;
 last pid_error: int = 0;
+last last_error: int = 0;
 last line_switched: bool = false;
 last min_vals: int^5 = [10000, 10000, 10000, 1000, 10000];
 last max_vals: int^5 = [0, 0, 0, 0, 0];
@@ -135,7 +136,7 @@ let
     automaton
         state Calibrate
             var ncycles: int;
-            do v_l=40; v_r=40; dir=3;
+            do v_l=30; v_r=30; dir=3;
                 ncycles = 0->pre(ncycles) + 1;
             (* until ncycles>=150 and (all_high or (ncycles>=200) ) then Idle *)
         state Idle
@@ -153,19 +154,22 @@ let
                 calibrated = true;
                 automaton
                     state PID
+                        var sharp_thresh: int;
                         do 
-                            v_l = safe_motor_update(base_speed, pid_error);
-                            v_r = safe_motor_update(base_speed, -1*pid_error);
-                            dir = 1;
+                            sharp_thresh = 30;
+                            v_l = if abs(pid_error) <= sharp_thresh then safe_motor_update(base_speed, pid_error/2) else safe_motor_update(0, abs(pid_error)+20);
+                            v_r = if abs(pid_error) <= sharp_thresh then safe_motor_update(base_speed, -1*pid_error/2) else safe_motor_update(0, abs(pid_error)+20);
+                            dir = if abs(pid_error) <= sharp_thresh then 1 else if pid_error > 0 then 3 else 2;
+                            last_error = if pid_error=0 then (last last_error) else if pid_error>0 then 1 else -1;
                         unless all_low then Recovery
                     state Recovery
                         do 
-                            v_l = base_speed; 
-                            v_r = base_speed; 
-                            dir = 4;
+                            v_l = base_speed+20;
+                            v_r = base_speed+20;
+                            dir = if last_error=0 then 4 else if last_error > 0 then 3 else 2;
                         until not all_low then PID
                 end
-            until (all_high or only_middle_low) and (not line_switched) then TransitionPrep
+            (* until (all_high or only_middle_low) and (not line_switched) then TransitionPrep *)
         state TransitionPrep
             do line_switched=true; v_l=base_speed; v_r=base_speed; dir=1;
             until true then Transition
@@ -179,10 +183,13 @@ let
             do
                 automaton
                     state PID
+                        var sharp_thresh: int;
                         do 
-                            v_l = safe_motor_update(base_speed, pid_error);
-                            v_r = safe_motor_update(base_speed, -1*pid_error);
-                            dir = 1;
+                            sharp_thresh = 30;
+                            v_l = if abs(pid_error) <= sharp_thresh then safe_motor_update(base_speed, pid_error/2) else safe_motor_update(0, abs(pid_error)+20);
+                            v_r = if abs(pid_error) <= sharp_thresh then safe_motor_update(base_speed, -1*pid_error/2) else safe_motor_update(0, abs(pid_error)+20);
+                            dir = if abs(pid_error) <= sharp_thresh then 1 else if pid_error > 0 then 3 else 2;
+                            last_error = if pid_error=0 then (last last_error) else if pid_error>0 then 1 else -1;
                         unless all_low then Recovery
                             |  all_high then Intersection
                     state Intersection
@@ -220,9 +227,9 @@ let
                         until not (next_dir=0) then PID
                     state Recovery
                         do 
-                            v_l = base_speed; 
-                            v_r = base_speed; 
-                            dir = 4;
+                            v_l = base_speed+20;
+                            v_r = base_speed+20;
+                            dir = if last_error=0 then 4 else if last_error > 0 then 3 else 2;
                         until not all_low then PID
                     state Stop
                         do v_l=0; v_r=0; dir=0;
