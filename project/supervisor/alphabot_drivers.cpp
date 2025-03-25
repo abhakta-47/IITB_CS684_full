@@ -186,6 +186,21 @@ int Distance_test() // Measure the distance
     return (int)Fdistance;
 }
 
+bool custom_distance_test(int cm) {
+    digitalWrite(TRIG, LOW);  // Ensure trig pin is low
+    delayMicroseconds(2);     // Short settling delay
+    digitalWrite(TRIG, HIGH); // Trigger pulse for 10µs
+    delayMicroseconds(10);
+    digitalWrite(TRIG, LOW);
+
+    unsigned long timeout =
+        cm * 58; // Convert cm to microseconds (1 cm = 58 µs)
+    unsigned long duration = pulseIn(ECHO, HIGH, timeout);
+
+    return (duration > 0 &&
+            duration <= timeout); // True if object detected within threshold
+}
+
 void init_devices() {
     ultrasonic_init();
     port_expander_init();

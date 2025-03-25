@@ -49,6 +49,7 @@ char joystick_read();
 char ir_read();
 
 void ultrasonic_init();
-int Distance_test();
+int Distance_test();            // in cm
+bool custom_distance_test(int); // true if < kcm
 
 void init_devices();

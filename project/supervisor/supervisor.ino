@@ -6,6 +6,8 @@
 // #define CALIBRATE
 #define RUNMOTOR
 
+#define OBSTACLE_WAIT 3000 // ms
+
 #ifdef DEBUG
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
@@ -17,6 +19,10 @@
 
 #define NUM_SENSORS 5
 int sensorValues[NUM_SENSORS];
+
+int ir_val;
+int IR_LEFT = 2, IR_RIGHT = 4;
+bool OBS_LEFT = false, OBS_RIGHT = false;
 
 #ifdef DEBUG
 #define OLED_SA0 8
@@ -34,6 +40,8 @@ void debug_display();
 
 void setup() {
     init_devices();
+    pinMode(IR_LEFT, INPUT);
+    pinMode(IR_RIGHT, INPUT);
     Serial.begin(115200);
     Line_follower__main_reset(&_mem);
 
@@ -69,17 +77,19 @@ void setup() {
     display.display();
 #endif
 
-    _mem.ck = Line_follower__St_2_Idle;
+    _mem.ck = Line_follower__St_3_Idle;
     Serial.flush();
 }
 
 void loop() {
     // stop();
     AnalogRead(sensorValues);
-    int ir_val = read_ir();
+    ir_val = read_ir();
+    OBS_LEFT = !digitalRead(IR_LEFT);
+    OBS_RIGHT = !digitalRead(IR_RIGHT);
     Line_follower__main_step(sensorValues[0], sensorValues[1], sensorValues[2],
-                             sensorValues[3], sensorValues[4], ir_val, &_res,
-                             &_mem);
+                             sensorValues[3], sensorValues[4], ir_val, OBS_LEFT,
+                             OBS_RIGHT, &_res, &_mem);
 #ifdef RUNMOTOR
     motor_control();
 #else
@@ -142,30 +152,35 @@ void debug_serial() {
         Serial.print(F(" "));
     }
 
-    Line_follower__st_2 root_state = _mem.ck;
-    // Line_follower__st_3 obs_state = _mem.v_119;
-    Line_follower__st_1 BW_state = _mem.v_113;
+    Line_follower__st_3 root_state = _mem.ck;
+    Line_follower__st_2 obs_state = _mem.v_95;
+    Line_follower__st_1 BW_state = _mem.v_123;
     // Line_follower__st_1 intersection_state = _mem.v_101;
-    Line_follower__st WB_state = _mem.v_181;
+    Line_follower__st WB_state = _mem.v_187;
     char buff[200];
     Serial.println();
     Serial.print(F("Root: "));
-    Serial.print(string_of_Line_follower__st_2(root_state, buff));
-    Serial.print(F(" WonB: "));
+    Serial.print(string_of_Line_follower__st_3(root_state, buff));
+    Serial.print(F("\tWonB: "));
     Serial.print(string_of_Line_follower__st(WB_state, buff));
-    Serial.print(F(" BonW: "));
+    Serial.print(F("\tBonW: "));
     Serial.print(string_of_Line_follower__st_1(BW_state, buff));
-    // Serial.print(F(" IntX: "));
-    // Serial.print(string_of_Line_follower__st_1(intersection_state, buff));
+    Serial.print(F("\tObsA: "));
+    Serial.print(string_of_Line_follower__st_2(obs_state, buff));
 
     Serial.println();
-    Serial.print(F("op: "));
+    Serial.print(F("er:"));
     Serial.print(pid_error);
-    Serial.print(F(" "));
+    Serial.print(F("\tir:"));
+    Serial.print(ir_val);
+    Serial.print(F("\tolr:"));
+    Serial.print(OBS_LEFT);
+    Serial.print(OBS_RIGHT);
+    Serial.print(F("\tdir:"));
     Serial.print(_res.dir);
-    Serial.print(F(" "));
+    Serial.print(F("\tvl:"));
     Serial.print(_res.v_l);
-    Serial.print(F(" "));
+    Serial.print(F("\tvr:"));
     Serial.print(_res.v_r);
     Serial.println();
 
@@ -347,6 +362,10 @@ void motor_control() {
         break;
     case 5:
         brake();
+        break;
+    case 99:
+        brake();
+        // delay(OBSTACLE_WAIT);
         break;
     default:
         stop();

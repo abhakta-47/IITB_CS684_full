@@ -45,6 +45,7 @@ const safe_speed_low: int = 0
 (*  *)
 const low_thresh: int = 250 -- sensor value less than low_thresh guarantees white
 const high_thresh: int = 500 -- sensor value more than high_thresh guarantees black
+const obstacle_ahead_thresh: int = 3
 (********************************
 CONFIGURATION CONSTANTS END
 *********************************)
@@ -106,13 +107,11 @@ tel
 
 
 (* Main function for line following *)
-node main(sen0, sen1, sen2, sen3, sen4, ir_value: int) returns ( v_l, v_r, dir: int;)
+node main(sen0, sen1, sen2, sen3, sen4, ir_value: int; obs_left, obs_right: bool) returns ( v_l, v_r, dir: int;)
 var raw_sen: int^5; sensor_avg: int; all_low, all_high, only_middle_low: bool;
 (* last : int = 1;  *)
-last calibrated: bool = false;
 last pid_error: int = 0;
 last last_error: int = 0;
-last line_switched: bool = false;
 last max_vals: int^5 = [800, 850, 830, 960, 710];
 last min_vals: int^5 = [350, 360, 340, 750, 400];
 last sen: int^5 = [0, 0, 0, 0, 0];
@@ -138,17 +137,14 @@ let
                 max_vals = map<<5>>updateMaxs(raw_sen, (last max_vals));
         state Idle
             do 
-            calibrated = true;
             v_l=0; v_r=0; dir=0;
             unless all_high then Start
         state Start
             do 
-            calibrated = true;
             v_l=base_speed; v_r=base_speed; dir=1;
             until not all_high then WonB
         state WonB
             do
-                calibrated = true;
                 (* pid_error = if sen[3]<=low_thresh and sen[4]>high_thresh then -10 else calPidError(sensor_avg, kscale_white); *)
                 pid_error = calPidError(sensor_avg, kscale_white);
                 automaton
@@ -168,7 +164,7 @@ let
                             dir = if last_error=0 then 4 else if last_error > 0 then 3 else 2;
                         until not (sen[0]<=low_thresh and sen[1]<=low_thresh and sen[2]<=low_thresh and sen[3]<=low_thresh and sen[4]<=low_thresh) then PID
                 end
-            until (all_high or only_middle_low) and (not line_switched) then Transition
+            until (all_high or only_middle_low) then Transition
         state Transition
             (* var numcycles: int; *)
             do
@@ -179,7 +175,6 @@ let
             unless not (sen[0]>=high_thresh and sen[1]>=high_thresh and sen[2]>=high_thresh and sen[3]>=high_thresh and sen[4]>=high_thresh) then BonW
         state BonW
             do
-                line_switched = true;
                 pid_error = calPidError(sensor_avg, kscale_black);
                 automaton
                     state PID
@@ -203,5 +198,35 @@ let
                     state Stop
                         do v_l=0; v_r=0; dir=0;
                 end
+            unless not (ir_value=0) then ObstacleAvoid
+        state ObstacleAvoid
+            do
+                automaton
+                    (* state Wait
+                        do
+                            v_l = 0;
+                            v_r = 0;
+                            dir = 99;
+                        until true then FullRight *)
+                    state FullRight
+                        do
+                            v_l = 30;
+                            v_r = 30;
+                            dir = 3;
+                        unless obs_left then Straight
+                    state Straight
+                        do
+                            dir = 1;
+                            v_l = 30;
+                            v_r = 30;
+                        unless (not obs_left) or ir_value=0 then Left
+                    state Left
+                        do
+                            dir = 2;
+                            v_l = 30;
+                            v_r = 30;
+                        unless obs_left or ir_value>0 then Straight
+                end
+            until not all_high then BonW
     end
 tel
