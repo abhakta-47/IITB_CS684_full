@@ -1,9 +1,9 @@
 #include <Wire.h>
 
 // Options
-#define DEBUG
+// #define DEBUG
 // #define DEBUG_DETAILED
-#define CALIBRATE
+// #define CALIBRATE
 #define RUNMOTOR
 
 #ifdef DEBUG
@@ -35,6 +35,7 @@ void debug_display();
 void setup() {
     init_devices();
     Serial.begin(115200);
+    Line_follower__main_reset(&_mem);
 
     Wire.begin(); // Initialize I2C
 #ifdef DEBUG
@@ -49,7 +50,6 @@ void setup() {
 
 #ifdef CALIBRATE
     Serial.println(F("Calibration started..."));
-    Line_follower__main_reset(&_mem);
     unsigned long startTime = millis();
     while (millis() - startTime < 10 * 1000) {
         AnalogRead(sensorValues);
@@ -77,44 +77,86 @@ void loop() {
     // stop();
     AnalogRead(sensorValues);
     int ir_val = read_ir();
-    Serial.println();
-    Serial.println();
-    // Serial.print("Raw: ");
-    // Serial.print(sensorValues[0]);
-    // Serial.print(" ");
-    // Serial.print(sensorValues[1]);
-    // Serial.print(" ");
-    // Serial.print(sensorValues[2]);
-    // Serial.print(" ");
-    // Serial.print(sensorValues[3]);
-    // Serial.print(" ");
-    // Serial.print(sensorValues[4]);
     Line_follower__main_step(sensorValues[0], sensorValues[1], sensorValues[2],
                              sensorValues[3], sensorValues[4], ir_val, &_res,
                              &_mem);
 #ifdef RUNMOTOR
     motor_control();
+#else
+    debug_serial();
+    delay(1000);
 #endif
 
 #ifdef DEBUG
     debug_display();
-#else
-    debug_serial();
 #endif
-    // delay(10);
 }
 
+#ifndef RUNMOTOR
 void debug_serial() {
     long pid_error = _mem.pid_error_3;
 
     // Print sensor values compactly
+    Serial.println();
+    Serial.println();
+    Serial.print(F("Max: "));
+    for (int i = 0; i < NUM_SENSORS; i++) {
+        if (_mem.max_vals_1[i] <= 9 && _mem.max_vals_1[i] >= -9)
+            Serial.print(F(" "));
+        if (_mem.max_vals_1[i] <= 99 && _mem.max_vals_1[i] >= -99)
+            Serial.print(F(" "));
+        Serial.print(_mem.max_vals_1[i]);
+        Serial.print(F(" "));
+    }
+
+    Serial.println();
+    Serial.print(F("Min: "));
+    for (int i = 0; i < NUM_SENSORS; i++) {
+        if (_mem.min_vals_1[i] <= 9 && _mem.min_vals_1[i] >= -9)
+            Serial.print(F(" "));
+        if (_mem.min_vals_1[i] <= 99 && _mem.min_vals_1[i] >= -99)
+            Serial.print(F(" "));
+        Serial.print(_mem.min_vals_1[i]);
+        Serial.print(F(" "));
+    }
+
+    Serial.println();
+    Serial.print(F("Raw: "));
+    for (int i = 0; i < NUM_SENSORS; i++) {
+        if (sensorValues[i] <= 9 && sensorValues[i] >= -9)
+            Serial.print(F(" "));
+        if (sensorValues[i] <= 99 && sensorValues[i] >= -99)
+            Serial.print(F(" "));
+        Serial.print(sensorValues[i]);
+        Serial.print(F(" "));
+    }
+
+    Serial.println();
     Serial.print(F("Cal: "));
     for (int i = 0; i < NUM_SENSORS; i++) {
-        Serial.print(_mem.sen_2[i]);
-        if (i != NUM_SENSORS - 1)
+        if (_mem.sen_2[i] <= 9 && _mem.sen_2[i] >= -9)
             Serial.print(F(" "));
+        if (_mem.sen_2[i] <= 99 && _mem.sen_2[i] >= -99)
+            Serial.print(F(" "));
+        Serial.print(_mem.sen_2[i]);
+        Serial.print(F(" "));
     }
+
+    Line_follower__st_2 root_state = _mem.ck;
+    // Line_follower__st_3 obs_state = _mem.v_119;
+    Line_follower__st_1 BW_state = _mem.v_113;
+    // Line_follower__st_1 intersection_state = _mem.v_101;
+    Line_follower__st WB_state = _mem.v_181;
+    char buff[200];
     Serial.println();
+    Serial.print(F("Root: "));
+    Serial.print(string_of_Line_follower__st_2(root_state, buff));
+    Serial.print(F(" WonB: "));
+    Serial.print(string_of_Line_follower__st(WB_state, buff));
+    Serial.print(F(" BonW: "));
+    Serial.print(string_of_Line_follower__st_1(BW_state, buff));
+    // Serial.print(F(" IntX: "));
+    // Serial.print(string_of_Line_follower__st_1(intersection_state, buff));
 
     Serial.println();
     Serial.print(F("op: "));
@@ -126,8 +168,10 @@ void debug_serial() {
     Serial.print(F(" "));
     Serial.print(_res.v_r);
     Serial.println();
-    Serial.flush();
+
+    // Serial.flush();
 }
+#endif
 
 #ifdef DEBUG
 void debug_display() {
