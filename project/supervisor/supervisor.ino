@@ -7,6 +7,10 @@
 // #define CALIBRATE
 #define RUNMOTOR
 
+#ifndef RUNMOTOR
+#define DEBUG_SERIAL
+#endif
+
 #define OBSTACLE_WAIT 3000 // ms
 
 #ifdef DEBUG
@@ -78,7 +82,7 @@ void setup() {
     display.display();
 #endif
 
-    _mem.ck = Line_follower__St_3_Idle;
+    _mem.ck = Line_follower__St_4_Idle;
     Serial.flush();
 }
 
@@ -155,21 +159,23 @@ void debug_serial() {
         Serial.print(F(" "));
     }
 
-    Line_follower__st_3 root_state = _mem.ck;
-    Line_follower__st_2 obs_state = _mem.v_96;
-    Line_follower__st_1 BW_state = _mem.v_124;
-    // Line_follower__st_1 intersection_state = _mem.v_101;
-    Line_follower__st WB_state = _mem.v_188;
+    Line_follower__st_4 root_state = _mem.ck;
+    Line_follower__st_3 obs_state = _mem.v_202;
+    Line_follower__st_2 BW_state = _mem.v_204;
+    Line_follower__st_1 inx_state = _mem.v_216;
+    Line_follower__st WB_state = _mem.v_259;
     char buff[200];
     Serial.println();
     Serial.print(F("Root: "));
-    Serial.print(string_of_Line_follower__st_3(root_state, buff));
+    Serial.print(string_of_Line_follower__st_4(root_state, buff));
     Serial.print(F("\tWonB: "));
     Serial.print(string_of_Line_follower__st(WB_state, buff));
     Serial.print(F("\tBonW: "));
-    Serial.print(string_of_Line_follower__st_1(BW_state, buff));
+    Serial.print(string_of_Line_follower__st_2(BW_state, buff));
+    Serial.print("\tInx: ");
+    Serial.print(string_of_Line_follower__st_1(inx_state, buff));
     Serial.print(F("\tObsA: "));
-    Serial.print(string_of_Line_follower__st_2(obs_state, buff));
+    Serial.print(string_of_Line_follower__st_3(obs_state, buff));
 
     Serial.println();
     Serial.print(F("er:"));
