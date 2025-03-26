@@ -200,6 +200,7 @@ let
                 end
             unless not (ir_value=0) then ObstacleAvoid
         state ObstacleAvoid
+            var complete: bool;
             do
                 automaton
                     (* state Wait
@@ -210,23 +211,26 @@ let
                         until true then FullRight *)
                     state FullRight
                         do
-                            v_l = 30;
-                            v_r = 30;
+                            v_l = safe_speed_high;
+                            v_r = safe_speed_high;
                             dir = 3;
-                        unless obs_left then Straight
-                    state Straight
+                            complete = false;
+                        until obs_left then SlightRight
+                    state SlightRight
                         do
                             dir = 1;
-                            v_l = 30;
-                            v_r = 30;
-                        unless (not obs_left) or ir_value=0 then Left
-                    state Left
+                            v_l=50; v_r=10;
+                            complete = true;
+                        unless not obs_left then SlightLeft
+                        | not (ir_value=0) then FullRight
+                    state SlightLeft
                         do
-                            dir = 2;
-                            v_l = 30;
-                            v_r = 30;
-                        unless obs_left or ir_value>0 then Straight
+                            dir = 1;
+                            v_l=10; v_r=50;
+                            complete = true;
+                        unless obs_left then SlightRight
+                        | not (ir_value=0) then FullRight
                 end
-            until not all_high then BonW
+            until (not all_high) and complete then BonW
     end
 tel

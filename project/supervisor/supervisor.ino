@@ -2,6 +2,7 @@
 
 // Options
 // #define DEBUG
+// #define DEBUG_SERIAL
 // #define DEBUG_DETAILED
 // #define CALIBRATE
 #define RUNMOTOR
@@ -92,7 +93,9 @@ void loop() {
                              OBS_RIGHT, &_res, &_mem);
 #ifdef RUNMOTOR
     motor_control();
-#else
+#endif
+
+#ifdef DEBUG_SERIAL
     debug_serial();
     delay(1000);
 #endif
@@ -102,7 +105,7 @@ void loop() {
 #endif
 }
 
-#ifndef RUNMOTOR
+#ifdef DEBUG_SERIAL
 void debug_serial() {
     long pid_error = _mem.pid_error_3;
 
@@ -153,10 +156,10 @@ void debug_serial() {
     }
 
     Line_follower__st_3 root_state = _mem.ck;
-    Line_follower__st_2 obs_state = _mem.v_95;
-    Line_follower__st_1 BW_state = _mem.v_123;
+    Line_follower__st_2 obs_state = _mem.v_96;
+    Line_follower__st_1 BW_state = _mem.v_124;
     // Line_follower__st_1 intersection_state = _mem.v_101;
-    Line_follower__st WB_state = _mem.v_187;
+    Line_follower__st WB_state = _mem.v_188;
     char buff[200];
     Serial.println();
     Serial.print(F("Root: "));
@@ -347,6 +350,11 @@ void motor_control() {
     case 25:
         sharp_left();
         break;
+    case 29:
+        left();
+        delay(400);
+        stop();
+        break;
     case 3:
         right();
         // delay(3);
@@ -356,6 +364,11 @@ void motor_control() {
         break;
     case 35:
         sharp_right();
+        break;
+    case 39:
+        right();
+        delay(400);
+        stop();
         break;
     case 4:
         backward();
