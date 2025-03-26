@@ -378,7 +378,7 @@ void motor_control() {
         break;
     case 99:
         brake();
-        // delay(OBSTACLE_WAIT);
+        delay(OBSTACLE_WAIT);
         break;
     default:
         stop();

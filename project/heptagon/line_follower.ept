@@ -40,8 +40,9 @@ const max_i: int = 200000000  -- to prevent integral overflow
 (* accelaration param *)
 const acc_thresh: int = 10
 const base_speed: int = 60
-const safe_speed_high: int = 40
-const safe_speed_low: int = 0
+(* safe speeds *)
+const safe_speed_high: int = 50
+const safe_speed_low: int = 10
 (*  *)
 const low_thresh: int = 250 -- sensor value less than low_thresh guarantees white
 const high_thresh: int = 500 -- sensor value more than high_thresh guarantees black
@@ -194,7 +195,7 @@ let
                             dir = 1;
                             v_l = if all_low then base_speed else if ((last inx_counter) <= 2) then safe_speed_high else safe_speed_low;
                             v_r = if all_low then base_speed else if ((last inx_counter) <= 2) then safe_speed_low else safe_speed_high;
-                        until (sen[2]<=low_thresh and sen[0]>=high_thresh and sen[1]>=high_thresh and sen[3]>=high_thresh and sen[4]>=high_thresh) then PID
+                        until not all_low then PID
                     state Stop
                         do v_l=0; v_r=0; dir=0;
                 end
@@ -203,12 +204,13 @@ let
             var complete: bool;
             do
                 automaton
-                    (* state Wait
+                    state Wait
                         do
                             v_l = 0;
                             v_r = 0;
                             dir = 99;
-                        until true then FullRight *)
+                            complete = false;
+                        until true then FullRight
                     state FullRight
                         do
                             v_l = safe_speed_high;
@@ -219,15 +221,15 @@ let
                     state SlightRight
                         do
                             dir = 1;
-                            v_l=50; v_r=10;
-                            complete = true;
+                            v_l=safe_speed_high; v_r=safe_speed_low;
+                            complete = false;
                         unless not obs_left then SlightLeft
                         | not (ir_value=0) then FullRight
                     state SlightLeft
                         do
                             dir = 1;
-                            v_l=10; v_r=50;
-                            complete = true;
+                            v_l=safe_speed_low; v_r=safe_speed_high;
+                            complete = false;
                         unless obs_left then SlightRight
                         | not (ir_value=0) then FullRight
                 end
