@@ -44,7 +44,7 @@ const base_speed: int = 60
 const safe_speed_high: int = 50
 const safe_speed_low: int = 10
 (*  *)
-const low_thresh: int = 250 -- sensor value less than low_thresh guarantees white
+const low_thresh: int = 499 -- sensor value less than low_thresh guarantees white
 const high_thresh: int = 500 -- sensor value more than high_thresh guarantees black
 const obstacle_ahead_thresh: int = 3
 (********************************
@@ -167,15 +167,7 @@ let
                             dir = if last_error=0 then 4 else if last_error > 0 then 3 else 2;
                         until not (sen[0]<=low_thresh and sen[1]<=low_thresh and sen[2]<=low_thresh and sen[3]<=low_thresh and sen[4]<=low_thresh) then PID
                 end
-            until (all_high or only_middle_low) then Transition
-        state Transition
-            (* var numcycles: int; *)
-            do
-                (* -- go Straight for some time *)
-                v_l= if last_error>0 then safe_speed_low else safe_speed_high; 
-                v_r= if last_error>0 then safe_speed_high else safe_speed_low; 
-                dir=1;
-            unless not (sen[0]>=high_thresh and sen[1]>=high_thresh and sen[2]>=high_thresh and sen[3]>=high_thresh and sen[4]>=high_thresh) then BonW
+            until (sen[0]>=high_thresh and (sen[1]<=low_thresh or sen[2]<=low_thresh or sen[3]<=low_thresh) and sen[4]>=high_thresh) then BonW
         state BonW
             do
                 pid_error = calPidError(sensor_avg, kscale_black);
