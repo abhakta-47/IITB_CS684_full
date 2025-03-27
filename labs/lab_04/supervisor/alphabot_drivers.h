@@ -1,0 +1,55 @@
+#include "Arduino.h"
+#include <Wire.h>
+
+#define Clock 13
+#define Address 12
+#define DataOut 11
+#define CS 10
+
+#define NUM_SENSORS 5
+
+#define DefaultSpeed 255
+#define ENL 5
+#define ENR 6
+
+#define INLF A0
+#define INLB A1
+#define INRF A3
+#define INRB A2
+
+#define Addr 0x20
+
+#define ECHO 2
+#define TRIG 3
+
+#define PIN 7
+
+void sensor_init(void);
+void AnalogRead(int *);
+
+void motion_init(void);
+void forward(void);   // ++
+void backward();      // --
+void right();         // +-
+void left();          // -+
+void forward_right(); // +0
+void forward_left();  // 0+
+void sharp_right();   // +*
+void sharp_left();    // *+
+void back_right();    // 0-
+void back_left();     // -0
+void stop();          // 00
+void brake();         // **
+void SetSpeed(char, char);
+
+void beep_on();
+void beep_off();
+
+char joystick_read();
+char ir_read();
+
+void ultrasonic_init();
+int Distance_test();            // in cm
+bool custom_distance_test(int); // true if < kcm
+
+void init_devices();

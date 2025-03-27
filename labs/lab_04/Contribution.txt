@@ -1,0 +1,4 @@
+White line to Black line Switch: Soumik
+Black line follow: tune params for black line follow: Santanu
+Intersection handling: Arif
+Obstacle Avoidance w/ extra Sensor installation: Arnab

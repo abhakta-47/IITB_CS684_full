@@ -5,11 +5,9 @@ theory/
 workspace/
 
 project/supervisor/line_follower*
-# submission files
-submissions/
 
 # labs 3 related
-labs/lab_03/heptagon
-labs/lab_03/libraries
-labs/lab_03/supervisor/line_follower*
-!labs/lab_03/heptagon/line_follower.ept
+labs/*/heptagon
+labs/*/libraries
+labs/*/supervisor/line_follower*
+!labs/*/heptagon/line_follower.ept
