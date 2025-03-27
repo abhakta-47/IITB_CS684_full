@@ -209,7 +209,7 @@ let
                                         v_r = base_speed;
                                         complete = (inx_counter>=5);
                                     until all_high then ExitRight
-                                        | not (inx_counter<3) and only_one_low then ExitLeft
+                                        | not (inx_counter=1) and only_one_low then ExitLeft
                                 state ExitRight
                                     do    
                                         dir = 3;
@@ -225,6 +225,7 @@ let
                             end
                         until complete then PID
                 end
+            until inx_counter=4 then Stop
             unless not (ir_value=0) then ObstacleAvoid
         state ObstacleAvoid
             var complete, white_happened, black_happend: bool;
@@ -290,5 +291,10 @@ let
                             complete = sen_1_high1 and sen[2]<=low_thresh;
                 end
             until complete then BonW
+        state Stop
+            do
+                dir=9;
+                v_l=0;
+                v_r=0;
     end
 tel

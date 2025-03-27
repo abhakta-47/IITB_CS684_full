@@ -160,9 +160,9 @@ void debug_serial() {
 
     Line_follower__st_4 root_state = _mem.ck;
     Line_follower__st_3 obs_state = _mem.v_240;
-    Line_follower__st_2 BW_state = _mem.v_266;
-    Line_follower__st_1 inx_state = _mem.v_274;
-    Line_follower__st WB_state = _mem.v_330;
+    Line_follower__st_2 BW_state = _mem.v_267;
+    Line_follower__st_1 inx_state = _mem.v_275;
+    Line_follower__st WB_state = _mem.v_331;
     char buff[200];
     Serial.println();
     Serial.print(F("Root: "));
@@ -201,9 +201,9 @@ void debug_display() {
 #ifdef DEBUG_DETAILED
     Line_follower__st_4 root_state = _mem.ck;
     Line_follower__st_3 obs_state = _mem.v_240;
-    Line_follower__st_2 BW_state = _mem.v_266;
-    Line_follower__st_1 intersection_state = _mem.v_274;
-    Line_follower__st WB_state = _mem.v_330;
+    Line_follower__st_2 BW_state = _mem.v_267;
+    Line_follower__st_1 intersection_state = _mem.v_275;
+    Line_follower__st WB_state = _mem.v_331;
 #endif
     long pid_error = _mem.pid_error_3;
 
