@@ -33,19 +33,20 @@ const sensor_weights: int^5 = [-5, -2, 0, 2, 5]
 (* for float approximation kscale is used effective k* would be k*/kscale *)
 const kscale_white: int = 100  -- Using integer division for scaling down
 const kscale_black: int = -120  -- Using integer division for scaling down
-const kp: int = 1 -- effective kp/kscale
+const kp: int = 2 -- effective kp/kscale
 const kd: int = 0 -- effective kd/kscale
 const ki: int = 0 -- effective ki/kscale
 const max_i: int = 200000000  -- to prevent integral overflow
 (* accelaration param *)
 const acc_thresh: int = 10
-const base_speed: int = 60
+const base_speed: int = 50
 (* safe speeds *)
 const safe_speed_high: int = 50
 const safe_speed_low: int = 10
 (*  *)
 const low_thresh: int = 499 -- sensor value less than low_thresh guarantees white
 const high_thresh: int = 500 -- sensor value more than high_thresh guarantees black
+const higher_thresh: int = 800 -- sensor value more than high_thresh guarantees black
 const obstacle_ahead_thresh: int = 3
 (********************************
 CONFIGURATION CONSTANTS END
@@ -109,7 +110,7 @@ tel
 
 (* Main function for line following *)
 node main(sen0, sen1, sen2, sen3, sen4, ir_value: int; obs_left, obs_right: bool) returns ( v_l, v_r, dir: int;)
-var raw_sen: int^5; sensor_avg: int; all_low, all_high, only_middle_low, inx_cond, only_one_low: bool;
+var raw_sen: int^5; sensor_avg: int; all_low, all_high, all_very_high, only_middle_low, inx_cond, only_one_low: bool;
 (* last : int = 1;  *)
 last pid_error: int = 0;
 last last_error: int = 0;
@@ -127,6 +128,7 @@ let
     -- Determine robot movement direction
     all_low = (sen[0]<=low_thresh and sen[1]<=low_thresh and sen[2]<=low_thresh and sen[3]<=low_thresh and sen[4]<=low_thresh);
     all_high = (sen[0]>=high_thresh and sen[1]>=high_thresh and sen[2]>=high_thresh and sen[3]>=high_thresh and sen[4]>=high_thresh);
+    all_very_high = (sen[0]>=higher_thresh and sen[1]>=higher_thresh and sen[2]>=higher_thresh and sen[3]>=higher_thresh and sen[4]>=higher_thresh);
     only_middle_low = (sen[0]>=high_thresh and sen[1]>=high_thresh and sen[2]<=low_thresh and sen[3]>=high_thresh and sen[4]>=high_thresh);
     inx_cond = (sen[0]<=low_thresh and sen[1]<=low_thresh and sen[2]<=low_thresh) or (sen[3]<=low_thresh and sen[1]<=low_thresh and sen[2]<=low_thresh) or (sen[4]<=low_thresh and sen[3]<=low_thresh and sen[2]<=low_thresh);
     only_one_low = (sen[0] <= low_thresh and sen[1] >= high_thresh and sen[2] >= high_thresh and sen[3] >= high_thresh and sen[4] >= high_thresh) or (sen[1] <= low_thresh and sen[0] >= high_thresh and sen[2] >= high_thresh and sen[3] >= high_thresh and sen[4] >= high_thresh) or (sen[2] <= low_thresh and sen[0] >= high_thresh and sen[1] >= high_thresh and sen[3] >= high_thresh and sen[4] >= high_thresh) or (sen[3] <= low_thresh and sen[0] >= high_thresh and sen[1] >= high_thresh and sen[2] >= high_thresh and sen[4] >= high_thresh) or (sen[4] <= low_thresh and sen[0] >= high_thresh and sen[1] >= high_thresh and sen[2] >= high_thresh and sen[3] >= high_thresh);
@@ -167,7 +169,15 @@ let
                             dir = if last_error=0 then 4 else if last_error > 0 then 3 else 2;
                         until not (sen[0]<=low_thresh and sen[1]<=low_thresh and sen[2]<=low_thresh and sen[3]<=low_thresh and sen[4]<=low_thresh) then PID
                 end
-            until (sen[0]>=high_thresh and (sen[1]<=low_thresh or sen[2]<=low_thresh or sen[3]<=low_thresh) and sen[4]>=high_thresh) then BonW
+            until (sen[0]>=high_thresh and (sen[1]<=low_thresh or sen[2]<=low_thresh or sen[3]<=low_thresh) and sen[4]>=high_thresh) then Transition
+        state Transition
+            (* var numcycles: int; *)
+            do
+                (* -- go Straight for some time *)
+                v_l= if last_error>0 then safe_speed_low else safe_speed_high; 
+                v_r= if last_error>0 then safe_speed_high else safe_speed_low; 
+                dir=1;
+            unless not (sen[0]>=high_thresh and sen[1]>=high_thresh and sen[2]>=high_thresh and sen[3]>=high_thresh and sen[4]>=high_thresh) then BonW
         state BonW
             do
                 pid_error = calPidError(sensor_avg, kscale_black);
@@ -205,7 +215,7 @@ let
                                         dir = 3;
                                         v_l = 30;
                                         v_r = 30;
-                                        complete = (sen[2]<=low_thresh or sen[3]<=low_thresh or sen[4]<=low_thresh);
+                                        complete = not all_high;
                                 state ExitLeft
                                     do    
                                         dir = 2;
@@ -217,15 +227,17 @@ let
                 end
             unless not (ir_value=0) then ObstacleAvoid
         state ObstacleAvoid
-            var complete: bool;
+            var complete, white_happened, black_happend: bool;
             do
+                white_happened = false -> if pre(white_happened) then true else all_very_high;
+                black_happend = false -> if pre(black_happend) then true else (white_happened and (not all_high));
                 automaton
                     state Wait
                         var ncycles: int;
                         do
                             v_l = 0;
                             v_r = 0;
-                            dir = 0;
+                            dir = 9;
                             ncycles = 0 -> pre(ncycles) + 1;
                             complete = if ir_value=0 then true else false;
                         until ncycles>1000 then FullRight
@@ -235,36 +247,47 @@ let
                             v_r = 30;
                             dir = 3;
                             complete = false;
-                        until obs_left then SlightRight
+                        unless obs_left then SlightRight
+                            |  all_low then SlightLeft
                     state SlightRight
                         do
                             dir = 1;
                             v_l=safe_speed_high; v_r=safe_speed_low;
                             complete = false;
                         unless not obs_left then SlightLeft
-                        | not (ir_value=0) then FullRight
-                        | not all_high then ExitStart
+                            | not (ir_value=0) then FullRight
+                            | black_happend then ExitStart
                     state SlightLeft
                         do
                             dir = 1;
                             v_l=safe_speed_low; v_r=safe_speed_high;
                             complete = false;
                         unless obs_left then SlightRight
-                        | not (ir_value=0) then FullRight
-                        | not all_high then ExitStart
+                            | not (ir_value=0) then FullRight
+                            | black_happend then ExitStart
                     state ExitStart
                         do
-                            dir=1;
-                            v_l=safe_speed_high;
-                            v_r=safe_speed_low;
-                            (* complete = false;
-                        unless (ir_value>0) then ExitEnd
-                    state ExitEnd
+                            dir=9;
+                            v_l=0;
+                            v_r=0;
+                            complete = false;
+                        unless (sen[0]<=low_thresh or sen[1]<=low_thresh) then ExitEnd1
+                            | (sen[2]<=low_thresh or sen[3]<=low_thresh or sen[4]<=low_thresh) then ExitEnd2
+                    state ExitEnd1
                         do
-                            dir=3;
+                            dir=1;
                             v_l=30;
-                            v_r=30; *)
-                            complete = (sen[4]<=low_thresh) or sen[3]<=low_thresh or sen[2]<=low_thresh;
+                            v_r=30;
+                            complete = true;
+                    state ExitEnd2
+                        var sen_1_low1, sen_1_high1: bool;
+                        do
+                            dir=1;
+                            v_l=30;
+                            v_r=0;
+                            sen_1_low1 = false -> if pre(sen_1_low1) then true else sen[1]<=low_thresh;
+                            sen_1_high1 = false -> if pre(sen_1_high1) then true else  sen_1_low1 and sen[2]>=high_thresh;
+                            complete = sen_1_high1 and sen[2]<=low_thresh;
                 end
             until complete then BonW
     end

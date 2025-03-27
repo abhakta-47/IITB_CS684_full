@@ -202,7 +202,7 @@ bool custom_distance_test(int cm) {
 }
 
 void init_devices() {
-    ultrasonic_init();
+    // ultrasonic_init();
     port_expander_init();
     motion_init();
     wls_init();

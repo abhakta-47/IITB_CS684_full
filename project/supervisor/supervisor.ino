@@ -50,7 +50,6 @@ void setup() {
     Serial.begin(115200);
     Line_follower__main_reset(&_mem);
 
-    Wire.begin(); // Initialize I2C
 #ifdef DEBUG
     display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // Use the correct I2C address
     display.clearDisplay();
@@ -160,10 +159,10 @@ void debug_serial() {
     }
 
     Line_follower__st_4 root_state = _mem.ck;
-    Line_follower__st_3 obs_state = _mem.v_187;
-    Line_follower__st_2 BW_state = _mem.v_203;
-    Line_follower__st_1 inx_state = _mem.v_218;
-    Line_follower__st WB_state = _mem.v_272;
+    Line_follower__st_3 obs_state = _mem.v_240;
+    Line_follower__st_2 BW_state = _mem.v_266;
+    Line_follower__st_1 inx_state = _mem.v_274;
+    Line_follower__st WB_state = _mem.v_330;
     char buff[200];
     Serial.println();
     Serial.print(F("Root: "));
@@ -201,10 +200,10 @@ void debug_serial() {
 void debug_display() {
 #ifdef DEBUG_DETAILED
     Line_follower__st_4 root_state = _mem.ck;
-    Line_follower__st_3 obs_state = _mem.v_187;
-    Line_follower__st_2 BW_state = _mem.v_203;
-    Line_follower__st_1 intersection_state = _mem.v_218;
-    Line_follower__st WB_state = _mem.v_272;
+    Line_follower__st_3 obs_state = _mem.v_240;
+    Line_follower__st_2 BW_state = _mem.v_266;
+    Line_follower__st_1 intersection_state = _mem.v_274;
+    Line_follower__st WB_state = _mem.v_330;
 #endif
     long pid_error = _mem.pid_error_3;
 
@@ -380,6 +379,9 @@ void motor_control() {
         backward();
         break;
     case 5:
+        brake();
+        break;
+    case 9:
         brake();
         break;
     case 99:
