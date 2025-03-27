@@ -160,10 +160,10 @@ void debug_serial() {
     }
 
     Line_follower__st_4 root_state = _mem.ck;
-    Line_follower__st_3 obs_state = _mem.v_202;
-    Line_follower__st_2 BW_state = _mem.v_204;
-    Line_follower__st_1 inx_state = _mem.v_216;
-    Line_follower__st WB_state = _mem.v_259;
+    Line_follower__st_3 obs_state = _mem.v_203;
+    Line_follower__st_2 BW_state = _mem.v_212;
+    Line_follower__st_1 inx_state = _mem.v_227;
+    Line_follower__st WB_state = _mem.v_270;
     char buff[200];
     Serial.println();
     Serial.print(F("Root: "));

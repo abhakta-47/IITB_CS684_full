@@ -116,7 +116,7 @@ last last_error: int = 0;
 last max_vals: int^5 = [800, 850, 830, 960, 710];
 last min_vals: int^5 = [350, 360, 340, 750, 400];
 last sen: int^5 = [0, 0, 0, 0, 0];
-last inx_counter:int = 0;
+last inx_counter: int = 0;
 let
     raw_sen = [sen0, sen1, sen2, sen3, sen4];
     sen = map<<5>>normalize_value((last min_vals), (last max_vals), raw_sen);
@@ -229,16 +229,18 @@ let
             do
                 automaton
                     state Wait
+                        var ncycles: int;
                         do
                             v_l = 0;
                             v_r = 0;
-                            dir = 99;
-                            complete = false;
-                        until true then FullRight
+                            dir = 0;
+                            ncycles = 0 -> pre(ncycles) + 1;
+                            complete = if ir_value=0 then true else false;
+                        until ncycles>1000 then FullRight
                     state FullRight
                         do
-                            v_l = safe_speed_high;
-                            v_r = safe_speed_high;
+                            v_l = 30;
+                            v_r = 30;
                             dir = 3;
                             complete = false;
                         until obs_left then SlightRight
@@ -249,6 +251,7 @@ let
                             complete = false;
                         unless not obs_left then SlightLeft
                         | not (ir_value=0) then FullRight
+                        | not all_high then ExitStart
                     state SlightLeft
                         do
                             dir = 1;
@@ -256,7 +259,21 @@ let
                             complete = false;
                         unless obs_left then SlightRight
                         | not (ir_value=0) then FullRight
+                        | not all_high then ExitStart
+                    state ExitStart
+                        do
+                            dir=1;
+                            v_l=safe_speed_high;
+                            v_r=safe_speed_low;
+                            (* complete = false;
+                        unless (ir_value>0) then ExitEnd
+                    state ExitEnd
+                        do
+                            dir=3;
+                            v_l=30;
+                            v_r=30; *)
+                            complete = (sen[4]<=low_thresh) or sen[3]<=low_thresh or sen[2]<=low_thresh;
                 end
-            until (not all_high) and complete then BonW
+            until complete then BonW
     end
 tel
