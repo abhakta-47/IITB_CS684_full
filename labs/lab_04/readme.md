@@ -6,8 +6,8 @@
 - Soumik Dutta (23M0826)  
 - Arnab Bhakta (23M0835)  
 
-## **YouTube Link**  
-[**Link**]()  
+## **YouTube [[Link]](https://youtu.be/SRNQqQcua1s?si=acKgFLWrAkdW8tvi)**  
+<iframe width="560" height="315" src="https://www.youtube.com/embed/SRNQqQcua1s?si=geWlyrC5JoaawTBe" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ## **Libraries Required**  
 ### **Arduino Libraries for OLED Display**  
@@ -33,7 +33,7 @@ Alternatively, you can comment out the `#define DEBUG` line.
 - Tuned `kp` for better control.  
 
 ## **Relevant Automatons**  
-This section explains the mechanisms for **Color Switch**, **Black Line Follow**, **Obstacle Avoidance**, and **Intersection Navigation**.  
+This section explains the mechanisms for **[Color Switch](#color-switch)**, **[Black Line Follow](#black-line-follow)**, **[Obstacle Avoidance](#obstacle-avoidance)**, and **[Intersection Handling](#intersection-handling)**.  
 
 ### **Color Switch**  
 The **Color Switch** mechanism detects and switches between white and black line-following modes.  
@@ -68,21 +68,18 @@ The **Black Line Follow** mechanism ensures the robot follows a black line on a 
    - Uses PID error calculation to adjust motor speeds.  
 
 2. **Intersection**  
-   - Handles intersection. (explained later).
-
-#### **Exit Condition**  
-- **To:** ObstacleAvoid  
-  - **Condition:** IR sensor detects an obstacle (`ir_value != 0`).  
-- **To:** Stop  
-  - **Condition:** Fourth intersection detected.  
-
-#### **Transition Table**  
+   - Handles intersection. (explained [later](#intersection-handling)).
 
 | **Current State** | **Condition** | **Next State** |
 |------------------|--------------|--------------|
 | **BonW** | Three neighboring sensors detect black | **Intersection** |
 | **Transition** | Transition complete | **BonW** |
 
+#### **Exit Condition**  
+- **To:** ObstacleAvoid  
+  - **Condition:** IR sensor detects an obstacle (`ir_value != 0`).  
+- **To:** Stop  
+  - **Condition:** Fourth intersection detected.  
 
 ### **Obstacle Avoidance**  
 The **Obstacle Avoidance** mechanism ensures the robot navigates around obstacles and resumes line-following.  

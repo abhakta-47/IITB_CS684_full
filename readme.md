@@ -22,3 +22,5 @@ II. Frequency of first element in a series
 ## Labs
 ### Lab 01: Line-Following Robot :: StateChart [[link]](labs/lab_01/)
 ### Lab 02: Line-Following Robot :: PID algo   [[link]](labs/lab_02/)
+### Lab 03: Line-Following Robot :: White line follow   [[link]](labs/lab_03/)
+### Lab 04: Line-Following Robot :: Obstacle avoidance   [[link]](labs/lab_04/)
