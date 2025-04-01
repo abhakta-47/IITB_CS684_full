@@ -40,10 +40,10 @@ done < <(grep -E "Line_follower__st(_[0-9]+)? [a-zA-Z0-9_]+ *= *_mem\." "$superv
 
 sed_cmd=""
 for type in "${!used_map[@]}"; do
-    # echo "$type :: ${used_map[$type]} -> ${var_map[$type]}"
+    echo "$type :: ${used_map[$type]} -> ${var_map[$type]}"
     sed_cmd+="s/_mem\.${used_map[$type]}/_mem\.${var_map[$type]}/g; "
 done
-# echo "$sed_cmd"
+echo "$sed_cmd"
 
 sed -i "$sed_cmd" "$supervisor_code"
 echo "String replacements done!"

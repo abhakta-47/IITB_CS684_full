@@ -152,7 +152,6 @@ let
             until not all_high then WonB
         state WonB
             do
-                (* pid_error = if sen[3]<=low_thresh and sen[4]>high_thresh then -10 else calPidError(sensor_avg, kscale_white); *)
                 pid_error = calPidError(sensor_avg, kscale_white);
                 last_error = if pid_error=0 then (last last_error) else if pid_error>0 then 1 else -1;
                 automaton
@@ -197,14 +196,14 @@ let
                     state Entry
                         var only_one_low: bool;
                         do
-                            (* first_cycle = true->false; *)
                             dir = 1;
                             v_l = base_speed;
                             v_r = base_speed;
-                            complete = (inx_counter>=5);
+                            complete = false;
                             only_one_low = (sen[0] <= low_thresh and sen[1] >= high_thresh and sen[2] >= high_thresh and sen[3] >= high_thresh and sen[4] >= high_thresh) or (sen[1] <= low_thresh and sen[0] >= high_thresh and sen[2] >= high_thresh and sen[3] >= high_thresh and sen[4] >= high_thresh) or (sen[2] <= low_thresh and sen[0] >= high_thresh and sen[1] >= high_thresh and sen[3] >= high_thresh and sen[4] >= high_thresh) or (sen[3] <= low_thresh and sen[0] >= high_thresh and sen[1] >= high_thresh and sen[2] >= high_thresh and sen[4] >= high_thresh) or (sen[4] <= low_thresh and sen[0] >= high_thresh and sen[1] >= high_thresh and sen[2] >= high_thresh and sen[3] >= high_thresh);
                         until all_high and (inx_counter<=2) then ExitRight
-                            | not (inx_counter<=2) and only_one_low then ExitLeft
+                            | (inx_counter=3 or inx_counter=4) and only_one_low then ExitLeft
+                            | (inx_counter=5) and only_one_low then ExitStraight
                     state ExitRight
                         do    
                             dir = 3;
@@ -217,9 +216,13 @@ let
                             v_l = 30;
                             v_r = 30;
                             complete = (sen[0]<=low_thresh);
+                    state ExitStraight
+                        do
+                            dir=9; v_l=0; v_r=0;
+                            complete = true;
                 end
             until complete and not (inx_counter=5) then BonW
-                | inx_counter=5 then Parking
+                | complete and inx_counter=5 then Parking
             unless not (ir_value=0) then ObstacleAvoid
         state ObstacleAvoid
             var complete, white_happened, black_happend, all_very_high: bool;
@@ -290,10 +293,40 @@ let
             until complete then BonW
         state Parking
             do
-                dir=9;
-                v_l=0;
-                v_r=0;
-
+                automaton
+                    state FindSpace
+                        var timer_left, timer_right, timer_thresh, local_vl, local_vr, local_dir: int;
+                        do
+                            timer_thresh = 800;
+                            timer_left  = 0 -> if obs_left  then 0 else pre(timer_left)  +1;
+                            timer_right = 0 -> if obs_right then 0 else pre(timer_right) +1;
+                            pid_error = calPidError(sensor_avg, kscale_black);
+                            (local_vl, local_vr, local_dir) = pid_err_to_speeds(pid_error);
+                            v_l=local_vl-(base_speed-25); v_r=local_vr-(base_speed-25); dir=1;
+                        until timer_left  > timer_thresh then ParkLeft
+                            | timer_right > timer_thresh then ParkRight
+                    state ParkLeft
+                        var ncycles: int;
+                        do
+                            ncycles = 0->pre(ncycles) +1;
+                            v_l=safe_speed_both; v_r=safe_speed_both; dir=3;
+                        until ncycles > 400 then GoSt
+                    state ParkRight
+                        var ncycles: int;
+                        do
+                            ncycles = 0->pre(ncycles) +1;
+                            v_l=safe_speed_both; v_r=safe_speed_both; dir=2;
+                        until ncycles > 400 then GoSt
+                    state GoSt
+                        var ncycles: int;
+                        do
+                            ncycles = 0->pre(ncycles) +1;
+                            v_l=safe_speed_both; v_r=safe_speed_both; dir=4;
+                        until ncycles > 700 then Stop
+                    state Stop
+                        do
+                            v_l=0; v_r=0; dir=9;                        
+                end
         state Stop
             do
                 dir=9;

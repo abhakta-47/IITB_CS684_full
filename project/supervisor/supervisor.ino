@@ -14,6 +14,10 @@
 #undef DEBUG_SERIAL
 #endif
 
+#ifdef DEBUG_SERIAL
+#define TRACK_TIME
+#endif
+
 #define OBSTACLE_WAIT 3000 // ms
 
 #ifdef DEBUG
@@ -29,7 +33,7 @@
 int sensorValues[NUM_SENSORS];
 
 int ir_val;
-int IR_LEFT = 2, IR_RIGHT = 3;
+int IR_LEFT = 2, IR_RIGHT = 4;
 bool OBS_LEFT = false, OBS_RIGHT = false;
 
 #ifdef DEBUG
@@ -84,21 +88,50 @@ void setup() {
     display.display();
 #endif
 
-    _mem.ck = Line_follower__St_3_Idle;
+    _mem.ck = Line_follower__St_4_Idle;
     Serial.flush();
 }
 
+int st_time, end_time;
+int read_time, step_time, motor_time;
+#define TIMER_FN micros
+
 void loop() {
-    // stop();
+// stop();
+#ifdef TRACK_TIME
+    st_time = micros();
+#endif
+    // 2200 micro s
     AnalogRead(sensorValues);
     ir_val = read_ir();
     OBS_LEFT = !digitalRead(IR_LEFT);
     OBS_RIGHT = !digitalRead(IR_RIGHT);
+#ifdef TRACK_TIME
+    end_time = micros();
+    read_time = end_time - st_time;
+#endif
+
+#ifdef TRACK_TIME
+    st_time = micros();
+#endif
+    // 470 micro s
     Line_follower__main_step(sensorValues[0], sensorValues[1], sensorValues[2],
                              sensorValues[3], sensorValues[4], ir_val, OBS_LEFT,
                              OBS_RIGHT, &_res, &_mem);
+#ifdef TRACK_TIME
+    end_time = micros();
+    step_time = end_time - st_time;
+#endif
+
+#ifdef TRACK_TIME
+    st_time = micros();
+#endif
 #ifdef RUNMOTOR
     motor_control();
+#endif
+#ifdef TRACK_TIME
+    end_time = micros();
+    motor_time = end_time - st_time;
 #endif
 
 #ifdef DEBUG_SERIAL
@@ -113,7 +146,7 @@ void loop() {
 
 #ifdef DEBUG_SERIAL
 void debug_serial() {
-    long pid_error = _mem.pid_error_5;
+    long pid_error = _mem.pid_error_6;
 
     // Print sensor values compactly
     Serial.println();
@@ -161,15 +194,16 @@ void debug_serial() {
         Serial.print(F(" "));
     }
 
-    Line_follower__st_3 root_state = _mem.ck;
-    Line_follower__st_2 obs_state = _mem.v_138;
-    Line_follower__st_1 inx_state = _mem.v_264;
-    Line_follower__st WB_state = _mem.v_324;
+    Line_follower__st_4 root_state = _mem.ck;
+    Line_follower__st_3 park_state = _mem.v_111;
+    Line_follower__st_2 obs_state = _mem.v_174;
+    Line_follower__st_1 inx_state = _mem.v_306;
+    Line_follower__st WB_state = _mem.v_366;
     long inx_counter = _mem.inx_counter_1;
     char buff[200];
     Serial.println();
     Serial.print(F("Root: "));
-    Serial.print(string_of_Line_follower__st_3(root_state, buff));
+    Serial.print(string_of_Line_follower__st_4(root_state, buff));
     Serial.print(F("\tWonB: "));
     Serial.print(string_of_Line_follower__st(WB_state, buff));
     Serial.print("\tInx: ");
@@ -178,6 +212,8 @@ void debug_serial() {
     Serial.print(inx_counter);
     Serial.print(F("\tObsA: "));
     Serial.print(string_of_Line_follower__st_2(obs_state, buff));
+    Serial.print(F("\tPark: "));
+    Serial.print(string_of_Line_follower__st_3(park_state, buff));
 
     Serial.println();
     Serial.print(F("er:"));
@@ -195,17 +231,29 @@ void debug_serial() {
     Serial.print(_res.v_r);
     Serial.println();
 
-    // Serial.flush();
+#ifdef TRACK_TIME
+    Serial.println();
+    Serial.print(F("times::"));
+    Serial.print(F("\tread:"));
+    Serial.print(read_time);
+    Serial.print(F("\tstep:"));
+    Serial.print(step_time);
+    Serial.print(F("\tmotor:"));
+    Serial.print(motor_time);
+    Serial.print(F("\ttotal:"));
+    Serial.print(read_time + step_time + motor_time);
+    Serial.println();
+#endif
 }
 #endif
 
 #ifdef DEBUG
 void debug_display() {
 #ifdef DEBUG_DETAILED
-    Line_follower__st_3 root_state = _mem.ck;
-    Line_follower__st_2 obs_state = _mem.v_138;
-    Line_follower__st_1 inx_state = _mem.v_264;
-    Line_follower__st WB_state = _mem.v_324;
+    Line_follower__st_3 root_state = _mem.v_111;
+    Line_follower__st_2 obs_state = _mem.v_174;
+    Line_follower__st_1 inx_state = _mem.v_306;
+    Line_follower__st WB_state = _mem.v_366;
 #endif
     long pid_error = _mem.pid_error_3;
 
