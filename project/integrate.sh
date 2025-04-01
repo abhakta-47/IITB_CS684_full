@@ -31,13 +31,18 @@ done < <(grep -E "Line_follower__st(_[0-9]+)?" "$line_follower_header")
 # done
 
 # Generate sed command dynamically
-sed_cmd=""
+declare -A used_map
 while read -r line; do
     type=$(echo "$line" | awk '{print $1}')
     oldname=$(echo "$line" | awk -F '_mem\\.' '{print $2}' | tr -d ';')
-    # echo "$type -> $oldname"
-    sed_cmd+="s/_mem\.$oldname/_mem\.${var_map[$type]}/g; "
+    used_map["$type"]="$oldname"
 done < <(grep -E "Line_follower__st(_[0-9]+)? [a-zA-Z0-9_]+ *= *_mem\." "$supervisor_code")
+
+sed_cmd=""
+for type in "${!used_map[@]}"; do
+    # echo "$type :: ${used_map[$type]} -> ${var_map[$type]}"
+    sed_cmd+="s/_mem\.${used_map[$type]}/_mem\.${var_map[$type]}/g; "
+done
 # echo "$sed_cmd"
 
 sed -i "$sed_cmd" "$supervisor_code"

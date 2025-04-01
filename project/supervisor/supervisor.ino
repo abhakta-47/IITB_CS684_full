@@ -1,14 +1,17 @@
 #include <Wire.h>
 
 // Options
+
+// FOR OLED display (do not enable)
 // #define DEBUG
-// #define DEBUG_SERIAL
 // #define DEBUG_DETAILED
+
 // #define CALIBRATE
+#define DEBUG_SERIAL
 #define RUNMOTOR
 
-#ifndef RUNMOTOR
-#define DEBUG_SERIAL
+#ifdef RUNMOTOR
+#undef DEBUG_SERIAL
 #endif
 
 #define OBSTACLE_WAIT 3000 // ms
@@ -26,7 +29,7 @@
 int sensorValues[NUM_SENSORS];
 
 int ir_val;
-int IR_LEFT = 2, IR_RIGHT = 4;
+int IR_LEFT = 2, IR_RIGHT = 3;
 bool OBS_LEFT = false, OBS_RIGHT = false;
 
 #ifdef DEBUG
@@ -65,9 +68,9 @@ void setup() {
     unsigned long startTime = millis();
     while (millis() - startTime < 10 * 1000) {
         AnalogRead(sensorValues);
-        Line_follower__main_step(sensorValues[0], sensorValues[1],
-                                 sensorValues[2], sensorValues[3],
-                                 sensorValues[4], 0, &_res, &_mem);
+        Line_follower__main_step(
+            sensorValues[0], sensorValues[1], sensorValues[2], sensorValues[3],
+            sensorValues[4], 0, false, false, &_res, &_mem);
 
         motor_control();
         delay(500);
@@ -81,7 +84,7 @@ void setup() {
     display.display();
 #endif
 
-    _mem.ck = Line_follower__St_4_Idle;
+    _mem.ck = Line_follower__St_3_Idle;
     Serial.flush();
 }
 
@@ -110,7 +113,7 @@ void loop() {
 
 #ifdef DEBUG_SERIAL
 void debug_serial() {
-    long pid_error = _mem.pid_error_3;
+    long pid_error = _mem.pid_error_5;
 
     // Print sensor values compactly
     Serial.println();
@@ -158,23 +161,23 @@ void debug_serial() {
         Serial.print(F(" "));
     }
 
-    Line_follower__st_4 root_state = _mem.ck;
-    Line_follower__st_3 obs_state = _mem.v_240;
-    Line_follower__st_2 BW_state = _mem.v_267;
-    Line_follower__st_1 inx_state = _mem.v_275;
-    Line_follower__st WB_state = _mem.v_331;
+    Line_follower__st_3 root_state = _mem.ck;
+    Line_follower__st_2 obs_state = _mem.v_138;
+    Line_follower__st_1 inx_state = _mem.v_264;
+    Line_follower__st WB_state = _mem.v_324;
+    long inx_counter = _mem.inx_counter_1;
     char buff[200];
     Serial.println();
     Serial.print(F("Root: "));
-    Serial.print(string_of_Line_follower__st_4(root_state, buff));
+    Serial.print(string_of_Line_follower__st_3(root_state, buff));
     Serial.print(F("\tWonB: "));
     Serial.print(string_of_Line_follower__st(WB_state, buff));
-    Serial.print(F("\tBonW: "));
-    Serial.print(string_of_Line_follower__st_2(BW_state, buff));
     Serial.print("\tInx: ");
     Serial.print(string_of_Line_follower__st_1(inx_state, buff));
+    Serial.print(F("."));
+    Serial.print(inx_counter);
     Serial.print(F("\tObsA: "));
-    Serial.print(string_of_Line_follower__st_3(obs_state, buff));
+    Serial.print(string_of_Line_follower__st_2(obs_state, buff));
 
     Serial.println();
     Serial.print(F("er:"));
@@ -199,11 +202,10 @@ void debug_serial() {
 #ifdef DEBUG
 void debug_display() {
 #ifdef DEBUG_DETAILED
-    Line_follower__st_4 root_state = _mem.ck;
-    Line_follower__st_3 obs_state = _mem.v_240;
-    Line_follower__st_2 BW_state = _mem.v_267;
-    Line_follower__st_1 intersection_state = _mem.v_275;
-    Line_follower__st WB_state = _mem.v_331;
+    Line_follower__st_3 root_state = _mem.ck;
+    Line_follower__st_2 obs_state = _mem.v_138;
+    Line_follower__st_1 inx_state = _mem.v_264;
+    Line_follower__st WB_state = _mem.v_324;
 #endif
     long pid_error = _mem.pid_error_3;
 

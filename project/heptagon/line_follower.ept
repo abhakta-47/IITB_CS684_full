@@ -37,10 +37,9 @@ const kp: int = 2 -- effective kp/kscale
 const kd: int = 0 -- effective kd/kscale
 const ki: int = 0 -- effective ki/kscale
 const max_i: int = 200000000  -- to prevent integral overflow
-(* accelaration param *)
-const acc_thresh: int = 10
+(* speeds *)
 const base_speed: int = 50
-(* safe speeds *)
+const safe_speed_both: int = 30
 const safe_speed_high: int = 50
 const safe_speed_low: int = 10
 (*  *)
@@ -107,10 +106,18 @@ let
     out = if input>=0 then input else -1*input;
 tel
 
+node pid_err_to_speeds(pid_error: int) returns(v_l, v_r, dir: int)
+var sharp_thresh: int;
+let
+    sharp_thresh = 40;
+    v_l = if abs(pid_error) <= sharp_thresh then safe_motor_update(base_speed, pid_error/2) else 100;
+    v_r = if abs(pid_error) <= sharp_thresh then safe_motor_update(base_speed, -1*pid_error/2) else 100;
+    dir = if abs(pid_error) <= sharp_thresh then 1 else if pid_error > 0 then 3 else 2;
+tel
 
 (* Main function for line following *)
 node main(sen0, sen1, sen2, sen3, sen4, ir_value: int; obs_left, obs_right: bool) returns ( v_l, v_r, dir: int;)
-var raw_sen: int^5; sensor_avg: int; all_low, all_high, all_very_high, only_middle_low, inx_cond, only_one_low: bool;
+var raw_sen: int^5; sensor_avg: int; all_high: bool;
 (* last : int = 1;  *)
 last pid_error: int = 0;
 last last_error: int = 0;
@@ -126,12 +133,7 @@ let
     sensor_avg = senWeightedAvg(sen);
 
     -- Determine robot movement direction
-    all_low = (sen[0]<=low_thresh and sen[1]<=low_thresh and sen[2]<=low_thresh and sen[3]<=low_thresh and sen[4]<=low_thresh);
     all_high = (sen[0]>=high_thresh and sen[1]>=high_thresh and sen[2]>=high_thresh and sen[3]>=high_thresh and sen[4]>=high_thresh);
-    all_very_high = (sen[0]>=higher_thresh and sen[1]>=higher_thresh and sen[2]>=higher_thresh and sen[3]>=higher_thresh and sen[4]>=higher_thresh);
-    only_middle_low = (sen[0]>=high_thresh and sen[1]>=high_thresh and sen[2]<=low_thresh and sen[3]>=high_thresh and sen[4]>=high_thresh);
-    inx_cond = (sen[0]<=low_thresh and sen[1]<=low_thresh and sen[2]<=low_thresh) or (sen[3]<=low_thresh and sen[1]<=low_thresh and sen[2]<=low_thresh) or (sen[4]<=low_thresh and sen[3]<=low_thresh and sen[2]<=low_thresh);
-    only_one_low = (sen[0] <= low_thresh and sen[1] >= high_thresh and sen[2] >= high_thresh and sen[3] >= high_thresh and sen[4] >= high_thresh) or (sen[1] <= low_thresh and sen[0] >= high_thresh and sen[2] >= high_thresh and sen[3] >= high_thresh and sen[4] >= high_thresh) or (sen[2] <= low_thresh and sen[0] >= high_thresh and sen[1] >= high_thresh and sen[3] >= high_thresh and sen[4] >= high_thresh) or (sen[3] <= low_thresh and sen[0] >= high_thresh and sen[1] >= high_thresh and sen[2] >= high_thresh and sen[4] >= high_thresh) or (sen[4] <= low_thresh and sen[0] >= high_thresh and sen[1] >= high_thresh and sen[2] >= high_thresh and sen[3] >= high_thresh);
 
     automaton
         state Calibrate
@@ -152,15 +154,13 @@ let
             do
                 (* pid_error = if sen[3]<=low_thresh and sen[4]>high_thresh then -10 else calPidError(sensor_avg, kscale_white); *)
                 pid_error = calPidError(sensor_avg, kscale_white);
+                last_error = if pid_error=0 then (last last_error) else if pid_error>0 then 1 else -1;
                 automaton
                     state PID
                         var sharp_thresh: int;
                         do 
                             sharp_thresh = 40;
-                            v_l = if abs(pid_error) <= sharp_thresh then safe_motor_update(base_speed, pid_error/2) else safe_motor_update(0, abs(pid_error)+20);
-                            v_r = if abs(pid_error) <= sharp_thresh then safe_motor_update(base_speed, -1*pid_error/2) else safe_motor_update(0, abs(pid_error)+20);
-                            dir = if abs(pid_error) <= sharp_thresh then 1 else if pid_error > 0 then 3 else 2;
-                            last_error = if pid_error=0 then (last last_error) else if pid_error>0 then 1 else -1;
+                            (v_l, v_r, dir) = pid_err_to_speeds(pid_error);
                         unless (sen[0]<=low_thresh and sen[1]<=low_thresh and sen[2]<=low_thresh and sen[3]<=low_thresh and sen[4]<=low_thresh) then Recovery
                     state Recovery
                         do 
@@ -171,65 +171,60 @@ let
                 end
             until (sen[0]>=high_thresh and (sen[1]<=low_thresh or sen[2]<=low_thresh or sen[3]<=low_thresh) and sen[4]>=high_thresh) then Transition
         state Transition
-            (* var numcycles: int; *)
             do
-                (* -- go Straight for some time *)
                 v_l= if last_error>0 then safe_speed_low else safe_speed_high; 
                 v_r= if last_error>0 then safe_speed_high else safe_speed_low; 
                 dir=1;
             unless not (sen[0]>=high_thresh and sen[1]>=high_thresh and sen[2]>=high_thresh and sen[3]>=high_thresh and sen[4]>=high_thresh) then BonW
         state BonW
+            var inx_condition: bool;
             do
+                inx_condition = (sen[0]<=low_thresh and sen[1]<=low_thresh and sen[2]<=low_thresh) or (sen[3]<=low_thresh and sen[1]<=low_thresh and sen[2]<=low_thresh) or (sen[4]<=low_thresh and sen[3]<=low_thresh and sen[2]<=low_thresh);
                 pid_error = calPidError(sensor_avg, kscale_black);
+                (v_l, v_r, dir) = pid_err_to_speeds(pid_error);
+            until inx_condition  then Intersection
+            unless not (ir_value=0) then ObstacleAvoid
+       state Intersection
+            var complete: bool;
+            do
                 automaton
-                    state PID
-                        var sharp_thresh: int;
-                        do 
-                            sharp_thresh = 30;
-                            v_l = if abs(pid_error) <= sharp_thresh then safe_motor_update(base_speed, pid_error/2) else safe_motor_update(0, abs(pid_error)+20);
-                            v_r = if abs(pid_error) <= sharp_thresh then safe_motor_update(base_speed, -1*pid_error/2) else safe_motor_update(0, abs(pid_error)+20);
-                            dir = if abs(pid_error) <= sharp_thresh then 1 else if pid_error > 0 then 3 else 2;
-                            last_error = if pid_error=0 then (last last_error) else if pid_error>0 then 1 else -1;
-                        unless inx_cond then Intersection
-                    state Intersection
-                        var complete: bool;
+                    state Counter
                         do
-                            automaton
-                                state Counter
-                                    do
-                                        dir=0; v_l=0; v_r=0;
-                                        inx_counter = (last inx_counter) + 1;
-                                        complete = false;
-                                    until true then Entry
-                                state Entry
-                                    do
-                                        (* first_cycle = true->false; *)
-                                        dir = 1;
-                                        v_l = base_speed;
-                                        v_r = base_speed;
-                                        complete = (inx_counter>=5);
-                                    until all_high then ExitRight
-                                        | not (inx_counter=1) and only_one_low then ExitLeft
-                                state ExitRight
-                                    do    
-                                        dir = 3;
-                                        v_l = 30;
-                                        v_r = 30;
-                                        complete = not all_high;
-                                state ExitLeft
-                                    do    
-                                        dir = 2;
-                                        v_l = 30;
-                                        v_r = 30;
-                                        complete = (sen[0]<=low_thresh);
-                            end
-                        until complete then PID
+                            dir=0; v_l=0; v_r=0;
+                            inx_counter = (last inx_counter) + 1;
+                            complete = false;
+                        until true then Entry
+                    state Entry
+                        var only_one_low: bool;
+                        do
+                            (* first_cycle = true->false; *)
+                            dir = 1;
+                            v_l = base_speed;
+                            v_r = base_speed;
+                            complete = (inx_counter>=5);
+                            only_one_low = (sen[0] <= low_thresh and sen[1] >= high_thresh and sen[2] >= high_thresh and sen[3] >= high_thresh and sen[4] >= high_thresh) or (sen[1] <= low_thresh and sen[0] >= high_thresh and sen[2] >= high_thresh and sen[3] >= high_thresh and sen[4] >= high_thresh) or (sen[2] <= low_thresh and sen[0] >= high_thresh and sen[1] >= high_thresh and sen[3] >= high_thresh and sen[4] >= high_thresh) or (sen[3] <= low_thresh and sen[0] >= high_thresh and sen[1] >= high_thresh and sen[2] >= high_thresh and sen[4] >= high_thresh) or (sen[4] <= low_thresh and sen[0] >= high_thresh and sen[1] >= high_thresh and sen[2] >= high_thresh and sen[3] >= high_thresh);
+                        until all_high and (inx_counter<=2) then ExitRight
+                            | not (inx_counter<=2) and only_one_low then ExitLeft
+                    state ExitRight
+                        do    
+                            dir = 3;
+                            v_l = 30;
+                            v_r = 30;
+                            complete = not all_high;
+                    state ExitLeft
+                        do    
+                            dir = 2;
+                            v_l = 30;
+                            v_r = 30;
+                            complete = (sen[0]<=low_thresh);
                 end
-            until inx_counter=4 then Stop
+            until complete and not (inx_counter=5) then BonW
+                | inx_counter=5 then Parking
             unless not (ir_value=0) then ObstacleAvoid
         state ObstacleAvoid
-            var complete, white_happened, black_happend: bool;
+            var complete, white_happened, black_happend, all_very_high: bool;
             do
+                all_very_high = (sen[0]>=higher_thresh and sen[1]>=higher_thresh and sen[2]>=higher_thresh and sen[3]>=higher_thresh and sen[4]>=higher_thresh);
                 white_happened = false -> if pre(white_happened) then true else all_very_high;
                 black_happend = false -> if pre(black_happend) then true else (white_happened and (not all_high));
                 automaton
@@ -243,13 +238,15 @@ let
                             complete = if ir_value=0 then true else false;
                         until ncycles>1000 then FullRight
                     state FullRight
+                        var all_low: bool;
                         do
                             v_l = 30;
                             v_r = 30;
                             dir = 3;
                             complete = false;
+                            all_low = (sen[0]<=low_thresh and sen[1]<=low_thresh and sen[2]<=low_thresh and sen[3]<=low_thresh and sen[4]<=low_thresh);
+                        until all_low then SlightLeft
                         unless obs_left then SlightRight
-                            |  all_low then SlightLeft
                     state SlightRight
                         do
                             dir = 1;
@@ -272,7 +269,7 @@ let
                             v_l=0;
                             v_r=0;
                             complete = false;
-                        unless (sen[0]<=low_thresh or sen[1]<=low_thresh) then ExitEnd1
+                        unless (sen[0]<=low_thresh or sen[1]<=low_thresh) and not (sen[2]<=low_thresh or sen[3]<=low_thresh or sen[4]<=low_thresh) then ExitEnd1
                             | (sen[2]<=low_thresh or sen[3]<=low_thresh or sen[4]<=low_thresh) then ExitEnd2
                     state ExitEnd1
                         do
@@ -291,6 +288,12 @@ let
                             complete = sen_1_high1 and sen[2]<=low_thresh;
                 end
             until complete then BonW
+        state Parking
+            do
+                dir=9;
+                v_l=0;
+                v_r=0;
+
         state Stop
             do
                 dir=9;
