@@ -56,8 +56,8 @@ void setup() {
     pinMode(IR_RIGHT, INPUT);
     Serial.begin(115200);
     Line_follower__main_reset(&_mem);
-
-#ifdef DEBUG
+    
+    #ifdef DEBUG
     display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // Use the correct I2C address
     display.clearDisplay();
     display.setTextSize(2);
@@ -65,11 +65,15 @@ void setup() {
     display.setCursor(0, 0);
     display.println(F("calibrating...."));
     display.display();
-#endif
-
-#ifdef CALIBRATE
+    #endif
+    
+    #ifdef CALIBRATE
     Serial.println(F("Calibration started..."));
     unsigned long startTime = millis();
+    for(int i=0; i<5; i++){
+        _mem.max_vals_1[i] = 0;
+        _mem.min_vals_1[i] = 1024;
+    }
     while (millis() - startTime < 10 * 1000) {
         AnalogRead(sensorValues);
         Line_follower__main_step(
@@ -89,6 +93,10 @@ void setup() {
 #endif
 
     _mem.ck = Line_follower__St_4_Idle;
+    // // ! remove in prod
+    // _mem.ck = Line_follower__St_4_BonW;
+    // _mem.inx_counter_1 = 3;
+    // // ! END remove in prod
     Serial.flush();
 }
 
@@ -146,7 +154,7 @@ void loop() {
 
 #ifdef DEBUG_SERIAL
 void debug_serial() {
-    long pid_error = _mem.pid_error_6;
+    long pid_error = _mem.pid_error_9;
 
     // Print sensor values compactly
     Serial.println();
@@ -195,10 +203,10 @@ void debug_serial() {
     }
 
     Line_follower__st_4 root_state = _mem.ck;
-    Line_follower__st_3 park_state = _mem.v_111;
-    Line_follower__st_2 obs_state = _mem.v_174;
-    Line_follower__st_1 inx_state = _mem.v_306;
-    Line_follower__st WB_state = _mem.v_366;
+    Line_follower__st_3 park_state = _mem.v_181;
+    Line_follower__st_2 obs_state = _mem.v_234;
+    Line_follower__st_1 inx_state = _mem.v_366;
+    Line_follower__st WB_state = _mem.v_413;
     long inx_counter = _mem.inx_counter_1;
     char buff[200];
     Serial.println();
@@ -250,10 +258,10 @@ void debug_serial() {
 #ifdef DEBUG
 void debug_display() {
 #ifdef DEBUG_DETAILED
-    Line_follower__st_3 root_state = _mem.v_111;
-    Line_follower__st_2 obs_state = _mem.v_174;
-    Line_follower__st_1 inx_state = _mem.v_306;
-    Line_follower__st WB_state = _mem.v_366;
+    Line_follower__st_3 root_state = _mem.v_181;
+    Line_follower__st_2 obs_state = _mem.v_234;
+    Line_follower__st_1 inx_state = _mem.v_366;
+    Line_follower__st WB_state = _mem.v_413;
 #endif
     long pid_error = _mem.pid_error_3;
 
