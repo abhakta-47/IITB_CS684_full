@@ -56,8 +56,8 @@ void setup() {
     pinMode(IR_RIGHT, INPUT);
     Serial.begin(115200);
     Line_follower__main_reset(&_mem);
-    
-    #ifdef DEBUG
+
+#ifdef DEBUG
     display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // Use the correct I2C address
     display.clearDisplay();
     display.setTextSize(2);
@@ -65,12 +65,12 @@ void setup() {
     display.setCursor(0, 0);
     display.println(F("calibrating...."));
     display.display();
-    #endif
-    
-    #ifdef CALIBRATE
+#endif
+
+#ifdef CALIBRATE
     Serial.println(F("Calibration started..."));
     unsigned long startTime = millis();
-    for(int i=0; i<5; i++){
+    for (int i = 0; i < 5; i++) {
         _mem.max_vals_1[i] = 0;
         _mem.min_vals_1[i] = 1024;
     }
@@ -154,7 +154,7 @@ void loop() {
 
 #ifdef DEBUG_SERIAL
 void debug_serial() {
-    long pid_error = _mem.pid_error_9;
+    long pid_error = _mem.pid_error_7;
 
     // Print sensor values compactly
     Serial.println();
@@ -203,10 +203,10 @@ void debug_serial() {
     }
 
     Line_follower__st_4 root_state = _mem.ck;
-    Line_follower__st_3 park_state = _mem.v_181;
-    Line_follower__st_2 obs_state = _mem.v_234;
-    Line_follower__st_1 inx_state = _mem.v_366;
-    Line_follower__st WB_state = _mem.v_413;
+    Line_follower__st_3 park_state = _mem.v_166;
+    Line_follower__st_2 obs_state = _mem.v_219;
+    Line_follower__st_1 inx_state = _mem.v_353;
+    Line_follower__st WB_state = _mem.v_449;
     long inx_counter = _mem.inx_counter_1;
     char buff[200];
     Serial.println();
@@ -258,10 +258,10 @@ void debug_serial() {
 #ifdef DEBUG
 void debug_display() {
 #ifdef DEBUG_DETAILED
-    Line_follower__st_3 root_state = _mem.v_181;
-    Line_follower__st_2 obs_state = _mem.v_234;
-    Line_follower__st_1 inx_state = _mem.v_366;
-    Line_follower__st WB_state = _mem.v_413;
+    Line_follower__st_3 root_state = _mem.v_166;
+    Line_follower__st_2 obs_state = _mem.v_219;
+    Line_follower__st_1 inx_state = _mem.v_353;
+    Line_follower__st WB_state = _mem.v_449;
 #endif
     long pid_error = _mem.pid_error_3;
 
