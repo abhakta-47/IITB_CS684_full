@@ -92,14 +92,14 @@ let
     norm_val = ((safe_val - min_val)*1000)/(max_val - min_val)
 tel 
 
-node updateMins(cur_val, cur_min: int) returns(new_min: int)
+node updateMins(cur_val, cur_thresh, cur_min: int) returns(new_min: int)
 let
-    new_min = if (not(cur_val=0)) and (cur_val<cur_min) then cur_val else cur_min;
+    new_min = if (cur_val>cur_min) and (cur_val<cur_thresh) then cur_val else cur_min;
 tel
 
-node updateMaxs(cur_val, cur_max: int) returns(new_max: int)
+node updateMaxs(cur_val, cur_thresh, cur_max: int) returns(new_max: int)
 let
-    new_max = if cur_val > cur_max then cur_val else cur_max;
+    new_max = if (cur_val<cur_max) and (cur_val>cur_thresh) then cur_val else cur_max;
 tel
 
 node max(val_a, val_b: int) returns (val_m: int)
@@ -138,6 +138,7 @@ last pid_error: int = 0;
 last last_error: int = 0;
 last max_vals: int^5 = [800, 850, 830, 960, 710];
 last min_vals: int^5 = [350, 360, 340, 750, 400];
+last thresh_vals: int^5 = [500, 500, 500, 700, 500];
 last sen: int^5 = [0, 0, 0, 0, 0];
 last inx_counter: int = 0;
 last parking_cycles_thresh: int = 0;
@@ -156,8 +157,9 @@ let
             var ncycles: int;
             do v_l=30; v_r=30; dir=3;
                 ncycles = 0->pre(ncycles) + 1;
-                min_vals = map<<5>>updateMins(raw_sen, (last min_vals));
-                max_vals = map<<5>>updateMaxs(raw_sen, (last max_vals));
+                min_vals = map<<5>>updateMins(raw_sen, thresh_vals, (last min_vals));
+                max_vals = map<<5>>updateMaxs(raw_sen, thresh_vals, (last max_vals));
+                thresh_vals = (last thresh_vals);
         state Idle
             do 
             v_l=0; v_r=0; dir=0;

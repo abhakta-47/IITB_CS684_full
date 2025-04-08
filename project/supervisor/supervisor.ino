@@ -6,9 +6,9 @@
 // #define DEBUG
 // #define DEBUG_DETAILED
 
-// #define CALIBRATE
+#define CALIBRATE
 #define DEBUG_SERIAL
-#define RUNMOTOR
+// #define RUNMOTOR
 
 #ifdef RUNMOTOR
 #undef DEBUG_SERIAL
@@ -69,18 +69,20 @@ void setup() {
 
 #ifdef CALIBRATE
     Serial.println(F("Calibration started..."));
-    unsigned long startTime = millis();
     for (int i = 0; i < 5; i++) {
-        _mem.max_vals_1[i] = 0;
-        _mem.min_vals_1[i] = 1024;
+        _mem.max_vals_1[i] = 1024;
+        _mem.min_vals_1[i] = 0;
     }
+    unsigned long startTime = millis();
     while (millis() - startTime < 10 * 1000) {
         AnalogRead(sensorValues);
         Line_follower__main_step(
             sensorValues[0], sensorValues[1], sensorValues[2], sensorValues[3],
             sensorValues[4], 0, false, false, &_res, &_mem);
 
+        #ifdef RUNMOTOR
         motor_control();
+        #endif
         delay(500);
         stop();
     }
