@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 
-src="/volume1/builds/$1_c"
-dest_src="$2"
-# echo "$src $dest_src"
-# exit 0
+cd "heptagon/"
+(./simulate.sh -s main -p $1.ept -k 1) 
+
+cd ".."
+
+dest_src=$pwd."/supervisor"
+src=$pwd."/heptagon/$1_c"
 cp "$src/$1_types.c" "$dest_src/$1_types.cpp"
 cp "$src/$1_types.h" "$dest_src/$1_types.h"
 cp "$src/$1.c" "$dest_src/$1.cpp"
@@ -31,24 +34,14 @@ done < <(grep -E "Line_follower__st(_[0-9]+)?" "$line_follower_header")
 # done
 
 # Generate sed command dynamically
-declare -A used_map
+sed_cmd=""
 while read -r line; do
     type=$(echo "$line" | awk '{print $1}')
     oldname=$(echo "$line" | awk -F '_mem\\.' '{print $2}' | tr -d ';')
-    used_map["$type"]="$oldname"
+    # echo "$type -> $oldname"
+    sed_cmd+="s/_mem\.$oldname/_mem\.${var_map[$type]}/g; "
 done < <(grep -E "Line_follower__st(_[0-9]+)? [a-zA-Z0-9_]+ *= *_mem\." "$supervisor_code")
+# echo "$sed_cmd"
 
-sed_cmd=""
-for type in "${!used_map[@]}"; do
-    if [[ -n "${var_map[$type]}" ]]; then
-        echo "$type :: ${used_map[$type]} -> ${var_map[$type]}"
-        sed_cmd+="s/_mem\.${used_map[$type]}/_mem\.${var_map[$type]}/g; "
-    else
-        echo "Warning: $type not found in var_map"
-    fi
-done
-echo "$sed_cmd"
-
-# exit 0
 sed -i "$sed_cmd" "$supervisor_code"
 echo "String replacements done!"
