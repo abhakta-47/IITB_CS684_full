@@ -26,8 +26,6 @@ Outputs:
 CONFIGURATION CONSTANTS START
 ***********************************)
 (* Sensor related *)
-const sensor_min: int = 0
-const sensor_max: int = 1000
 const sensor_weights: int^5 = [-5, -2, 0, 2, 5]
 (* PID gains and ranges *)
 (* Gains should be determined through field trials *)

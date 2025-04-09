@@ -7,7 +7,8 @@
 - Santanu Sahoo (23M0777)  
 
 ## **YouTube [[Link]](https://www.youtube.com/watch?v=2MvdgY3C3_0&t=4s)**  
-<iframe width="560" height="315" src="https://www.youtube.com/embed/2MvdgY3C3_0?si=2kkCBfsVIMEAdHLN" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+<!-- <iframe width="560" height="315" src="https://www.youtube.com/embed/2MvdgY3C3_0?si=2kkCBfsVIMEAdHLN" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe> -->
+[![](imgs/image.png)](https://www.youtube.com/watch?v=2MvdgY3C3_0&t=4s)
 
 ### Timestamps
 - 00:00 - Code explenation
