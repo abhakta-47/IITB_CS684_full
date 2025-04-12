@@ -3,9 +3,9 @@
   "image": "captab47/cs684_env:latest",
   "workspaceFolder": "/home/user/CS684",
   "remoteUser": "1000",
-  "runArgs": [
-    "--device=/dev/serial/by-id/usb-Silicon_Labs_CP2102_USB_to_UART_Bridge_Controller_0001-if00-port0"
-  ],
+  // "runArgs": [
+  //   "--device=/dev/serial/by-id/usb-Silicon_Labs_CP2102_USB_to_UART_Bridge_Controller_0001-if00-port0"
+  // ],
   "mounts": [
     "source=volume1,target=/volume1,type=volume",
     "source=${localWorkspaceFolder},target=/home/user/CS684,type=bind",
